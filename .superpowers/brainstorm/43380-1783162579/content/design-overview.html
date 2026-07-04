@@ -1,0 +1,188 @@
+<h2>Multi-Document Workspace - Design Overview</h2>
+<p class="subtitle">Architecture, data flow, and component breakdown for the VSCode-style workspace</p>
+
+<div class="section">
+<h3>Architecture</h3>
+<div class="mockup">
+<div class="mockup-header">System Architecture</div>
+<div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.8;padding:24px;">
+<div style="display:flex;gap:24px;align-items:flex-start;">
+<div style="flex:1;">
+<div style="background:#1a3a1a;border:1px solid #2d5a2d;border-radius:6px;padding:12px;margin-bottom:12px;">
+<div style="color:#4ec9b0;font-weight:bold;">excalidraw-app/</div>
+<div style="color:#ccc;padding-left:12px;">
+├── <span style="color:#dcdcaa;">document/</span><br>
+│&nbsp;&nbsp;├── DocumentManager.ts<br>
+│&nbsp;&nbsp;├── DocumentSidebar.tsx<br>
+│&nbsp;&nbsp;├── FolderTree.tsx<br>
+│&nbsp;&nbsp;├── ConflictDialog.tsx<br>
+│&nbsp;&nbsp;└── SyncStatus.tsx<br>
+├── <span style="color:#dcdcaa;">storage/</span><br>
+│&nbsp;&nbsp;├── StorageAdapter.ts <span style="color:#6a9955;">(interface)</span><br>
+│&nbsp;&nbsp;├── LocalAdapter.ts <span style="color:#6a9955;">(IndexedDB)</span><br>
+│&nbsp;&nbsp;├── S3Adapter.ts<br>
+│&nbsp;&nbsp;└── WebDAVAdapter.ts <span style="color:#6a9955;">(Phase 2)</span><br>
+└── <span style="color:#dcdcaa;">sync/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── SyncEngine.ts<br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── ConflictResolver.ts<br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── ConfigCrypto.ts
+</div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+<div style="background:#1a2a3a;border:1px solid #2d4a5d;border-radius:6px;padding:12px;text-align:center;">
+<div style="color:#569cd6;font-weight:bold;">Excalidraw Editor</div>
+<div style="color:#888;font-size:11px;margin-top:4px;">excalidrawAPI (existing)</div>
+</div>
+<div style="text-align:center;color:#666;font-size:18px;">↕</div>
+<div style="background:#2a2a1a;border:1px solid #5a5a2d;border-radius:6px;padding:12px;text-align:center;">
+<div style="color:#d7ba7d;font-weight:bold;">IndexedDB Cache</div>
+<div style="color:#888;font-size:11px;margin-top:4px;">Local-first, offline support</div>
+</div>
+<div style="text-align:center;color:#666;font-size:18px;">↕</div>
+<div style="background:#2a1a2a;border:1px solid #5a2d4d;border-radius:6px;padding:12px;text-align:center;">
+<div style="color:#c586c0;font-weight:bold;">S3 / WebDAV</div>
+<div style="color:#888;font-size:11px;margin-top:4px;">Cloud sync, multi-device</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>UI Layout</h3>
+<div class="mockup">
+<div class="mockup-header">VSCode-Style Workspace</div>
+<div class="mockup-body" style="padding:0;">
+<div style="display:flex;height:260px;">
+<div style="width:200px;background:#1e1e2e;border-right:1px solid #333;display:flex;flex-direction:column;">
+<div style="padding:8px 12px;border-bottom:1px solid #333;display:flex;align-items:center;justify-content:space-between;">
+<span style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;">Explorer</span>
+<div style="display:flex;gap:6px;">
+<span style="font-size:14px;color:#888;cursor:pointer;" title="New File">📄</span>
+<span style="font-size:14px;color:#888;cursor:pointer;" title="New Folder">📁</span>
+<span style="font-size:14px;color:#888;cursor:pointer;" title="Refresh">🔄</span>
+</div>
+</div>
+<div style="flex:1;overflow-y:auto;padding:4px 0;">
+<div style="padding:2px 8px;font-size:11px;color:#888;cursor:pointer;">▼ My Drawings</div>
+<div style="padding:3px 8px 3px 20px;font-size:12px;color:#ccc;background:#37373d;cursor:pointer;display:flex;align-items:center;gap:4px;">
+<span>📄</span> Architecture Diagram
+</div>
+<div style="padding:2px 8px;font-size:11px;color:#888;cursor:pointer;">▼ Project Alpha</div>
+<div style="padding:3px 8px 3px 20px;font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:4px;">
+<span>📄</span> Flow Chart
+</div>
+<div style="padding:3px 8px 3px 20px;font-size:12px;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:4px;">
+<span>📄</span> Wireframe v2
+</div>
+<div style="padding:2px 8px;font-size:11px;color:#888;cursor:pointer;">▶ Archived</div>
+</div>
+<div style="padding:6px 12px;border-top:1px solid #333;display:flex;align-items:center;gap:6px;font-size:11px;">
+<span style="width:6px;height:6px;border-radius:50%;background:#4ec9b0;display:inline-block;"></span>
+<span style="color:#888;">Synced</span>
+</div>
+</div>
+<div style="flex:1;background:#2b2b2b;display:flex;align-items:center;justify-content:center;position:relative;">
+<div style="color:#555;font-size:14px;">Excalidraw Canvas</div>
+<div style="position:absolute;top:8px;left:8px;background:#333;padding:2px 6px;border-radius:3px;font-size:10px;color:#888;">
+Architecture Diagram
+</div>
+<div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;">
+<div style="background:#333;padding:2px 6px;border-radius:3px;font-size:10px;color:#888;cursor:pointer;" title="Toggle Sidebar">☰</div>
+<div style="background:#333;padding:2px 6px;border-radius:3px;font-size:10px;color:#888;cursor:pointer;" title="Settings">⚙</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>Data Flow</h3>
+<div class="mockup">
+<div class="mockup-header">Save & Sync Flow</div>
+<div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:2;padding:20px;color:#ccc;">
+<span style="color:#4ec9b0;">User edits canvas</span><br>
+&nbsp;&nbsp;→ <span style="color:#dcdcaa;">DocumentManager.autoSave()</span> debounce 500ms<br>
+&nbsp;&nbsp;→ Write to <span style="color:#d7ba7d;">IndexedDB</span> immediately (offline-safe)<br>
+&nbsp;&nbsp;→ Mark document as <span style="color:#ce9178;">dirty</span><br>
+&nbsp;&nbsp;→ <span style="color:#c586c0;">SyncEngine</span> debounce 2s, then:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;→ GET remote version (ETag / version field)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;→ <span style="color:#6a9955;">if no conflict:</span> PUT local → remote, clear dirty<br>
+&nbsp;&nbsp;&nbsp;&nbsp;→ <span style="color:#f44747;">if conflict:</span> show <span style="color:#dcdcaa;">ConflictDialog</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ Option A: Keep local (overwrite remote)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ Option B: Use remote (overwrite local)<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ Option C: Keep both (save local as copy, load remote)
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>S3 Storage Structure</h3>
+<div class="mockup">
+<div class="mockup-header">Bucket Layout</div>
+<div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:1.8;padding:20px;color:#ccc;">
+<span style="color:#569cd6;">my-excalidraw-bucket/</span><br>
+├── <span style="color:#dcdcaa;">__manifest.json</span> <span style="color:#6a9955;">// folder tree + document metadata</span><br>
+├── <span style="color:#dcdcaa;">__config.json</span> <span style="color:#6a9955;">// sync settings, version</span><br>
+├── <span style="color:#569cd6;">root/</span><br>
+│&nbsp;&nbsp;├── <span style="color:#ce9178;">doc-abc123.excalidraw</span><br>
+│&nbsp;&nbsp;└── <span style="color:#ce9178;">doc-def456.excalidraw</span><br>
+├── <span style="color:#569cd6;">Project Alpha/</span><br>
+│&nbsp;&nbsp;├── <span style="color:#ce9178;">doc-ghi789.excalidraw</span><br>
+│&nbsp;&nbsp;└── <span style="color:#ce9178;">doc-jkl012.excalidraw</span><br>
+└── <span style="color:#569cd6;">assets/</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;├── <span style="color:#b5cea8;">file-xxx.png</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;└── <span style="color:#b5cea8;">file-yyy.svg</span>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>Config Export/Import Flow</h3>
+<div class="mockup">
+<div class="mockup-header">Multi-Device Setup</div>
+<div class="mockup-body" style="font-family:monospace;font-size:12px;line-height:2;padding:20px;color:#ccc;">
+<span style="color:#4ec9b0;">Device A (setup):</span><br>
+&nbsp;&nbsp;→ User fills: Endpoint, Bucket, AK, SK<br>
+&nbsp;&nbsp;→ Settings → "Export Config"<br>
+&nbsp;&nbsp;→ Config encrypted with user-chosen password<br>
+&nbsp;&nbsp;→ Generates: encrypted string + QR code<br>
+<br>
+<span style="color:#569cd6;">Device B (import):</span><br>
+&nbsp;&nbsp;→ Settings → "Import Config"<br>
+&nbsp;&nbsp;→ Scan QR code OR paste encrypted string<br>
+&nbsp;&nbsp;→ Enter password to decrypt<br>
+&nbsp;&nbsp;→ Config applied, sync starts automatically
+</div>
+</div>
+</div>
+
+<div class="section">
+<h3>Implementation Phases</h3>
+<div class="options">
+<div class="option" style="cursor:default;border-color:#2d5a2d;">
+<div class="letter" style="background:#2d5a2d;">1</div>
+<div class="content">
+<h3>Phase 1 - Local Multi-Document + S3 Sync</h3>
+<p>IndexedDB document store, VSCode sidebar with folders, S3 adapter, conflict detection dialog, config export/import, offline-first save flow. This is the core deliverable.</p>
+</div>
+</div>
+<div class="option" style="cursor:default;border-color:#2d4a5d;">
+<div class="letter" style="background:#2d4a5d;">2</div>
+<div class="content">
+<h3>Phase 2 - WebDAV + Polish</h3>
+<p>WebDAV adapter (NextCloud/Nutstore), document thumbnails, search, drag-and-drop reordering, keyboard shortcuts (Cmd+B toggle sidebar), recent documents list.</p>
+</div>
+</div>
+<div class="option" style="cursor:default;border-color:#5a2d4d;">
+<div class="letter" style="background:#5a2d4d;">3</div>
+<div class="content">
+<h3>Phase 3 - Advanced Features</h3>
+<p>Git adapter, version history UI, batch import/export, document sharing via pre-signed URLs, optional CRDT merge for real-time collaboration.</p>
+</div>
+</div>
+</div>
+</div>

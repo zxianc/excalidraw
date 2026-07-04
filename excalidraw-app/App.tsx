@@ -152,6 +152,7 @@ import { ConflictDialog } from "./document/ConflictDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 
 import { useDocumentManager } from "./document/useDocumentManager";
+import { DOC_CONSTANTS } from "./document/constants";
 
 import type {
   ConflictInfo,
@@ -384,6 +385,7 @@ const initializeScene = async (opts: {
 const ExcalidrawWrapper = () => {
   const excalidrawAPI = useExcalidrawAPI();
 
+
   const [errorMessage, setErrorMessage] = useState("");
   const isCollabDisabled = isRunningInIframe();
 
@@ -421,7 +423,29 @@ const ExcalidrawWrapper = () => {
     createFolder,
     renameFolder,
     deleteFolder,
+    saveDocumentData,
   } = useDocumentManager();
+  // Debounced save to IndexedDB document store
+  const docSaveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const scheduleDocSave = useCallback(
+    (docId: string, elements: any, appState: any, files: any) => {
+      const existing = docSaveTimers.current.get(docId);
+      if (existing) {
+        clearTimeout(existing);
+      }
+      const timer = setTimeout(() => {
+        saveDocumentData(docId, {
+          elements: elements as any,
+          appState: appState as any,
+          files: files as any,
+        });
+        docSaveTimers.current.delete(docId);
+      }, DOC_CONSTANTS.AUTO_SAVE_DEBOUNCE);
+      docSaveTimers.current.set(docId, timer);
+    },
+    [saveDocumentData],
+  );
+
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
 
@@ -730,6 +754,10 @@ const ExcalidrawWrapper = () => {
     // this check is redundant, but since this is a hot path, it's best
     // not to evaludate the nested expression every time
     if (!LocalData.isSavePaused()) {
+      // Persist to our IndexedDB document store (debounced)
+      if (activeDocId) {
+        scheduleDocSave(activeDocId, elements, appState, files);
+      }
       LocalData.save(elements, appState, files, () => {
         if (excalidrawAPI) {
           let didChange = false;
@@ -838,6 +866,21 @@ const ExcalidrawWrapper = () => {
 
   const handleDocumentSwitch = useCallback(
     async (docId: string) => {
+      // Save current document data before switching
+      if (activeDocId && excalidrawAPI) {
+        try {
+          const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
+          const appState = excalidrawAPI.getAppState();
+          const files = excalidrawAPI.getFiles();
+          await saveDocumentData(activeDocId, {
+            elements: elements as any,
+            appState: appState as any,
+            files: files as any,
+          });
+        } catch {
+          // silently ignore save errors during switch
+        }
+      }
       const data = await switchDocument(docId);
       if (data && excalidrawAPI) {
         excalidrawAPI.updateScene({
@@ -849,7 +892,7 @@ const ExcalidrawWrapper = () => {
         }
       }
     },
-    [switchDocument, excalidrawAPI],
+    [switchDocument, excalidrawAPI, activeDocId, saveDocumentData],
   );
   const handleRenameDocument = useCallback(
     (docId: string) => {
@@ -983,11 +1026,30 @@ const ExcalidrawWrapper = () => {
 
   return (
     <div
-      style={{ height: "100%" }}
+      style={{ height: "100%", display: "flex" }}
       className={clsx("excalidraw-app", {
         "is-collaborating": isCollaborating,
       })}
     >
+      {initialized && manifest && (
+        <DocumentSidebar
+          manifest={manifest}
+          activeDocId={activeDocId}
+          syncState={syncState}
+          isOpen={sidebarOpen}
+          onToggle={() => setSidebarOpen((prev: boolean) => !prev)}
+          onDocumentClick={handleDocumentSwitch}
+          onCreateDocument={(parentFolderId) => createDocument(undefined, parentFolderId)}
+          onCreateFolder={(parentFolderId) => createFolder("New Folder", parentFolderId)}
+          onDeleteDocument={deleteDocument}
+          onRenameDocument={handleRenameDocument}
+          onDuplicateDocument={(id) => duplicateDocument(id)}
+          onDeleteFolder={deleteFolder}
+          onRenameFolder={handleRenameFolder}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
       <Excalidraw
         onChange={onChange}
         onExport={onExport}
@@ -1338,24 +1400,7 @@ const ExcalidrawWrapper = () => {
           />
         )}
 
-        {initialized && manifest && (
-          <DocumentSidebar
-            manifest={manifest}
-            activeDocId={activeDocId}
-            syncState={syncState}
-            isOpen={sidebarOpen}
-            onToggle={() => setSidebarOpen((prev: boolean) => !prev)}
-            onDocumentClick={handleDocumentSwitch}
-            onCreateDocument={() => createDocument()}
-            onCreateFolder={() => createFolder("New Folder")}
-            onDeleteDocument={deleteDocument}
-            onRenameDocument={handleRenameDocument}
-            onDuplicateDocument={(id) => duplicateDocument(id)}
-            onDeleteFolder={deleteFolder}
-            onRenameFolder={handleRenameFolder}
-            onOpenSettings={() => setSettingsOpen(true)}
-          />
-        )}
+
         {conflictInfo && (
           <ConflictDialog
             conflict={conflictInfo}
@@ -1370,6 +1415,7 @@ const ExcalidrawWrapper = () => {
           onConfigCleared={() => {}}
         />
       </Excalidraw>
+      </div>
     </div>
   );
 };

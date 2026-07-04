@@ -15,8 +15,8 @@ interface DocumentSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onDocumentClick: (docId: string) => void;
-  onCreateDocument: () => void;
-  onCreateFolder: () => void;
+  onCreateDocument: (parentFolderId?: string) => void;
+  onCreateFolder: (parentFolderId?: string) => void;
   onDeleteDocument: (docId: string) => void;
   onRenameDocument: (docId: string) => void;
   onDuplicateDocument: (docId: string) => void;
@@ -49,6 +49,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
 }) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentContextMenu = useCallback(
     (docId: string, e: React.MouseEvent) => {
@@ -101,6 +102,12 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
             onDuplicateDocument(id);
           }
           break;
+        case "new-file":
+          onCreateDocument(id);
+          break;
+        case "new-folder":
+          onCreateFolder(id);
+          break;
       }
       closeContextMenu();
     },
@@ -111,91 +118,110 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
       onDuplicateDocument,
       onRenameFolder,
       onDeleteFolder,
+      onCreateDocument,
+      onCreateFolder,
       closeContextMenu,
     ],
   );
 
   return (
     <>
+      <div
+        ref={sidebarRef}
+        className={clsx("doc-sidebar", {
+          "doc-sidebar--closed": !isOpen,
+        })}
+      >
+        {isOpen && (
+          <>
+            <div className="doc-sidebar__header">
+              <span className="doc-sidebar__title">EXPLORER</span>
+              <div className="doc-sidebar__actions">
+                <button
+                  className="doc-sidebar__action-btn"
+                  onClick={() => onCreateDocument()}
+                  title="New Document"
+                  aria-label="New File"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16">
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      d="M8 2v12M2 8h12"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="doc-sidebar__action-btn"
+                  onClick={() => onCreateFolder()}
+                  title="New Folder"
+                  aria-label="New Folder"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16">
+                    <path
+                      fill="currentColor"
+                      d="M1 3a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3z"
+                      fillOpacity="0.6"
+                    />
+                    <path
+                      d="M8 7v4M6 9h4"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="doc-sidebar__action-btn"
+                  onClick={onOpenSettings}
+                  title="Settings"
+                  aria-label="Settings"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16">
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm5.5-2.5h-1M8 1.5v1M2.5 7.5h-1M8 13.5v1m4.6-9.1-.7.7M3.4 11.6l-.7.7m0-8.6.7.7m8.2 8.2.7.7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <FolderTree
+              manifest={manifest}
+              activeDocId={activeDocId}
+              onDocumentClick={onDocumentClick}
+              onDocumentContextMenu={handleDocumentContextMenu}
+              onFolderContextMenu={handleFolderContextMenu}
+            />
+            <div className="doc-sidebar__footer">
+              <SyncStatus state={syncState} />
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* toggle pill — sits on the left edge of the canvas area */}
       <button
-        className="doc-sidebar__toggle"
+        className={clsx("doc-sidebar-toggle", {
+          "doc-sidebar-toggle--open": isOpen,
+        })}
         onClick={onToggle}
-        title={isOpen ? "Hide Explorer (Ctrl+B)" : "Show Explorer (Ctrl+B)"}
+        title={isOpen ? "Hide Explorer" : "Show Explorer"}
       >
         <svg
           viewBox="0 0 24 24"
-          width="20"
-          height="20"
+          width="18"
+          height="18"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="1.6"
         >
-          <path d="M3 12h18M3 6h18M3 18h18" />
+          <path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-1.5-2H5a2 2 0 0 0-2 2z" />
         </svg>
       </button>
-      <div className={clsx("doc-sidebar", { "doc-sidebar--open": isOpen })}>
-        <div className="doc-sidebar__header">
-          <span className="doc-sidebar__title">EXPLORER</span>
-          <div className="doc-sidebar__actions">
-            <button
-              className="doc-sidebar__action-btn"
-              onClick={onCreateDocument}
-              title="New Document"
-            >
-              <svg viewBox="0 0 16 16" width="16" height="16">
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  d="M8 2v12M2 8h12"
-                />
-              </svg>
-            </button>
-            <button
-              className="doc-sidebar__action-btn"
-              onClick={onCreateFolder}
-              title="New Folder"
-            >
-              <svg viewBox="0 0 16 16" width="16" height="16">
-                <path
-                  fill="currentColor"
-                  d="M1 3a1 1 0 0 1 1-1h4l2 2h6a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3z"
-                  fillOpacity="0.6"
-                />
-                <path
-                  d="M8 7v4M6 9h4"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                />
-              </svg>
-            </button>
-            <button
-              className="doc-sidebar__action-btn"
-              onClick={onOpenSettings}
-              title="Settings"
-            >
-              <svg viewBox="0 0 16 16" width="16" height="16">
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  d="M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm5.5-2.5h-1M8 1.5v1M2.5 7.5h-1M8 13.5v1m4.6-9.1-.7.7M3.4 11.6l-.7.7m0-8.6.7.7m8.2 8.2.7.7"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <FolderTree
-          manifest={manifest}
-          activeDocId={activeDocId}
-          onDocumentClick={onDocumentClick}
-          onDocumentContextMenu={handleDocumentContextMenu}
-          onFolderContextMenu={handleFolderContextMenu}
-        />
-        <div className="doc-sidebar__footer">
-          <SyncStatus state={syncState} />
-        </div>
-      </div>
+
       {contextMenu && (
         <>
           <div className="doc-sidebar__overlay" onClick={closeContextMenu} />
@@ -223,6 +249,13 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
             )}
             {contextMenu.type === "folder" && contextMenu.id !== "root" && (
               <>
+                <button onClick={() => handleMenuAction("new-file")}>
+                  New File
+                </button>
+                <button onClick={() => handleMenuAction("new-folder")}>
+                  New Folder
+                </button>
+                <div className="doc-sidebar__context-menu-divider" />
                 <button onClick={() => handleMenuAction("rename")}>
                   Rename
                 </button>

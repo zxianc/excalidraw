@@ -44,7 +44,12 @@ export class DocumentManager {
   }
 
   getManifest(): Manifest {
-    return this.manifest;
+    // Return a shallow clone so React detects state changes immediately
+    return {
+      ...this.manifest,
+      folders: { ...this.manifest.folders },
+      documents: { ...this.manifest.documents },
+    };
   }
   getActiveDocumentId(): string | null {
     return this.activeDocId;
@@ -58,13 +63,13 @@ export class DocumentManager {
     localStorage.setItem(DOC_CONSTANTS.ACTIVE_DOC_KEY, id);
   }
 
-  async createDocument(name?: string): Promise<DocumentMeta> {
+  createDocumentSync(name?: string, parentFolderId?: string): DocumentMeta {
     const id = generateId();
     const now = Date.now();
     const meta: DocumentMeta = {
       id,
       name: name || DOC_CONSTANTS.DEFAULT_DOC_NAME,
-      folderId: DOC_CONSTANTS.ROOT_FOLDER_ID,
+      folderId: parentFolderId || DOC_CONSTANTS.ROOT_FOLDER_ID,
       createdAt: now,
       updatedAt: now,
       version: 1,
@@ -72,14 +77,28 @@ export class DocumentManager {
       dirty: false,
     };
     this.manifest.documents[id] = meta;
-    this.manifest.folders.root.documents.push(id);
+    const targetFolder = this.manifest.folders[meta.folderId];
+    if (targetFolder) {
+      targetFolder.documents.push(id);
+    }
     this.manifest.version += 1;
-    await this.persistManifest();
-    await this.adapter.saveDocument(
+    // persist in background
+    this.persistManifest();
+    this.adapter.saveDocument(
       id,
       { elements: [], appState: {}, files: {} },
       meta,
     );
+    return meta;
+  }
+
+  async finalizeCreateDocument(_meta: DocumentMeta): Promise<void> {
+    // Already persisted optimistically, just a hook for future use
+  }
+
+  async createDocument(name?: string): Promise<DocumentMeta> {
+    const meta = this.createDocumentSync(name);
+    await this.finalizeCreateDocument(meta);
     return meta;
   }
 
@@ -181,7 +200,7 @@ export class DocumentManager {
     await this.persistManifest();
   }
 
-  async createFolder(name: string, parentId?: string): Promise<FolderNode> {
+  createFolderSync(name: string, parentId?: string): FolderNode {
     const id = generateId();
     const effectiveParentId = parentId || DOC_CONSTANTS.ROOT_FOLDER_ID;
     const folder: FolderNode = {
@@ -197,7 +216,18 @@ export class DocumentManager {
       parent.children.push(id);
     }
     this.manifest.version += 1;
-    await this.persistManifest();
+    // persist in background
+    this.persistManifest();
+    return folder;
+  }
+
+  async finalizeCreateFolder(_folder: FolderNode): Promise<void> {
+    // Already persisted optimistically, just a hook for future use
+  }
+
+  async createFolder(name: string, parentId?: string): Promise<FolderNode> {
+    const folder = this.createFolderSync(name, parentId);
+    await this.finalizeCreateFolder(folder);
     return folder;
   }
 

@@ -1,11 +1,209 @@
-.doc-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 240px; background: var(--color-surface-high); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 10; &--open { transform: translateX(0); } }
-.doc-sidebar__toggle { position: fixed; top: 8px; left: 8px; z-index: 11; background: var(--color-surface-high); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-primary-color); &:hover { background: var(--color-surface-low); } }
-.doc-sidebar__header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
-.doc-sidebar__title { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-secondary-color); text-transform: uppercase; }
-.doc-sidebar__actions { display: flex; gap: 2px; }
-.doc-sidebar__action-btn { background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; &:hover { background: var(--color-surface-low); color: var(--text-primary-color); } }
-.doc-sidebar__footer { padding: 8px 12px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
-.doc-sidebar__overlay { position: fixed; inset: 0; z-index: 99; }
-.doc-sidebar__context-menu { position: fixed; z-index: 100; background: var(--color-surface-high); border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 0; min-width: 160px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); button { display: block; width: 100%; padding: 6px 12px; background: none; border: none; text-align: left; font-size: 13px; cursor: pointer; color: var(--text-primary-color); &:hover { background: var(--color-surface-low); } } }
-.doc-sidebar__context-menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
-.doc-sidebar__context-menu-danger { color: var(--color-danger) !important; }
+/* Sidebar — scoped variables with hardcoded fallbacks so it works
+   when rendered outside .excalidraw's variable scope */
+.doc-sidebar {
+  --sidebar-gutter: 8px;
+  --sidebar-radius: 6px;
+  --sidebar-bg: var(--color-surface-high, #f1f0ff);
+  --sidebar-border: var(--border-color, #d7d7e0);
+  --sidebar-text: var(--text-primary-color, #1b1b1f);
+  --sidebar-text-secondary: var(--text-secondary-color, #5e5e72);
+  --sidebar-surface-low: var(--color-surface-low, #ececf4);
+  --sidebar-surface-mid: var(--color-surface-mid, #f6f6f9);
+  --sidebar-surface-lowest: var(--color-surface-lowest, #ffffff);
+  --sidebar-danger: var(--color-danger, #d32f2f);
+
+  width: 264px;
+  min-width: 264px;
+  height: 100%;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.2s ease, min-width 0.2s ease;
+
+  &--closed {
+    width: 0;
+    min-width: 0;
+    border-right: none;
+    visibility: hidden;
+  }
+}
+
+.doc-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px var(--sidebar-gutter) 10px 12px;
+  border-bottom: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.doc-sidebar__title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  color: var(--sidebar-text-secondary);
+  text-transform: uppercase;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.doc-sidebar__actions {
+  display: flex;
+  gap: 1px;
+}
+
+.doc-sidebar__action-btn {
+  position: relative;
+  background: none;
+  border: none;
+  padding: 5px;
+  cursor: pointer;
+  color: var(--sidebar-text);
+  opacity: 0.45;
+  border-radius: var(--sidebar-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+  line-height: 0;
+
+  &:hover {
+    opacity: 0.75;
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  &:active {
+    opacity: 0.9;
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+// VSCode-style tooltip on hover
+.doc-sidebar__action-btn::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: 110%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--sidebar-surface-lowest);
+  color: var(--sidebar-text);
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--sidebar-border);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  z-index: 100;
+  .doc-sidebar__action-btn:hover & {
+    opacity: 1;
+  }
+}
+
+.doc-sidebar__footer {
+  padding: 8px 12px;
+  border-top: 1px solid var(--sidebar-border);
+  flex-shrink: 0;
+}
+
+/* --- toggle pill: rounded pill with folder icon on the left edge of the canvas --- */
+.doc-sidebar-toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 64px;
+  border: 1px solid var(--sidebar-border);
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  background: var(--sidebar-bg);
+  cursor: pointer;
+  color: var(--sidebar-text-secondary);
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s, width 0.2s ease;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.08);
+
+  &:hover {
+    color: var(--sidebar-text);
+    background: var(--sidebar-surface-mid);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    background: var(--sidebar-surface-low);
+    box-shadow: 1px 0 2px rgba(0, 0, 0, 0.1);
+  }
+
+  svg {
+    transition: transform 0.2s ease, opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  &--open svg {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+}
+
+/* --- full-screen overlay behind context menu --- */
+.doc-sidebar__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: transparent;
+}
+
+/*
+ * Context menu — hardcoded values required because this element
+ * is rendered outside .doc-sidebar's DOM tree via portalled JSX,
+ * so scoped CSS variables (--sidebar-bg etc.) do not apply.
+ */
+.doc-sidebar__context-menu {
+  position: fixed;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #d7d7e0;
+  border-radius: 6px;
+  padding: 4px 0;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+  button {
+    display: block;
+    width: 100%;
+    padding: 6px 12px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+    color: #1b1b1f;
+
+    &:hover {
+      background: #ececf4;
+    }
+  }
+}
+
+.doc-sidebar__context-menu-divider {
+  height: 1px;
+  background: #d7d7e0;
+  margin: 4px 0;
+}
+
+.doc-sidebar__context-menu-danger {
+  color: #d32f2f !important;
+}

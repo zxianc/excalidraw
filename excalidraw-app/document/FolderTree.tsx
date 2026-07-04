@@ -40,7 +40,7 @@ const DocumentItem: React.FC<{
       />
     </svg>
     <span className="folder-tree__doc-name">{doc.name}</span>
-    {doc.dirty && <span className="folder-tree__doc-dirty">●</span>}
+    {doc.dirty && <span className="folder-tree__doc-dirty" />}
   </div>
 );
 

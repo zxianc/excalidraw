@@ -66,12 +66,14 @@ export function useDocumentManager() {
     }
   }, [manager, setManifest]);
   const createDocument = useCallback(
-    async (name?: string) => {
+    async (name?: string, parentFolderId?: string) => {
       if (!manager) {
         return null;
       }
-      const doc = await manager.createDocument(name);
+      // Optimistic: persist in background, update UI immediately
+      const doc = manager.createDocumentSync(name, parentFolderId);
       refreshManifest();
+      await manager.finalizeCreateDocument(doc);
       return doc;
     },
     [manager, refreshManifest],
@@ -146,8 +148,10 @@ export function useDocumentManager() {
       if (!manager) {
         return null;
       }
-      const folder = await manager.createFolder(name, parentId);
+      // Optimistic: persist in background, update UI immediately
+      const folder = manager.createFolderSync(name, parentId);
       refreshManifest();
+      await manager.finalizeCreateFolder(folder);
       return folder;
     },
     [manager, refreshManifest],

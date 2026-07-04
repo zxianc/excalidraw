@@ -1,0 +1,78 @@
+<h2>Sidebar Layout Options</h2>
+<p class="subtitle">Choose the overall workspace layout that feels right for switching between drawings</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>VSCode Style - File Tree Sidebar</h3>
+      <p>Left sidebar with collapsible document tree, main canvas on the right. Sidebar can be toggled with a shortcut. Similar to VSCode's Explorer panel.</p>
+      <div style="display:flex;gap:8px;margin-top:12px;height:80px;">
+        <div style="width:60px;background:#2d2d2d;border-radius:4px;padding:6px;font-size:10px;color:#ccc;">
+          <div style="color:#888;font-size:8px;margin-bottom:4px;">DOCS</div>
+          <div style="color:#fff;font-size:9px;padding:2px 4px;background:#37373d;border-radius:2px;margin-bottom:2px;">📄 Arch Diagram</div>
+          <div style="font-size:9px;padding:2px 4px;margin-bottom:2px;">📄 Flow Chart</div>
+          <div style="font-size:9px;padding:2px 4px;">📄 Wireframe</div>
+        </div>
+        <div style="flex:1;background:#1e1e1e;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#555;font-size:11px;">Canvas</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Tab Bar + Sidebar</h3>
+      <p>Top tab bar for open documents (like browser tabs), with an optional sidebar for full document list. Tabs show currently open docs, sidebar has everything.</p>
+      <div style="display:flex;flex-direction:column;gap:0;margin-top:12px;height:80px;">
+        <div style="height:22px;background:#2d2d2d;border-radius:4px 4px 0 0;display:flex;align-items:center;padding:0 4px;gap:2px;">
+          <div style="background:#1e1e1e;padding:2px 8px;border-radius:3px 3px 0 0;font-size:9px;color:#fff;">Arch Diagram ×</div>
+          <div style="background:#2d2d2d;padding:2px 8px;font-size:9px;color:#888;">Flow Chart ×</div>
+        </div>
+        <div style="display:flex;flex:1;">
+          <div style="width:50px;background:#2d2d2d;padding:6px;font-size:8px;color:#ccc;border-radius:0 0 0 4px;">
+            <div style="font-size:8px;color:#888;margin-bottom:3px;">ALL</div>
+            <div style="font-size:8px;padding:1px 3px;margin-bottom:1px;">📄 Arch</div>
+            <div style="font-size:8px;padding:1px 3px;margin-bottom:1px;">📄 Flow</div>
+            <div style="font-size:8px;padding:1px 3px;">📄 Wire</div>
+          </div>
+          <div style="flex:1;background:#1e1e1e;border-radius:0 0 4px 0;display:flex;align-items:center;justify-content:center;color:#555;font-size:11px;">Canvas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Drawer Panel</h3>
+      <p>Sidebar slides in from the left as an overlay when needed, doesn't permanently take canvas space. Click outside or press Esc to close. Maximizes canvas area.</p>
+      <div style="position:relative;margin-top:12px;height:80px;">
+        <div style="width:100%;height:100%;background:#1e1e1e;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#555;font-size:11px;">Canvas</div>
+        <div style="position:absolute;left:0;top:0;width:55px;height:100%;background:rgba(45,45,45,0.95);border-radius:4px 0 0 4px;padding:6px;font-size:9px;color:#ccc;box-shadow:2px 0 8px rgba(0,0,0,0.3);">
+          <div style="color:#888;font-size:8px;margin-bottom:4px;">DOCS</div>
+          <div style="color:#fff;font-size:9px;padding:2px 4px;background:#37373d;border-radius:2px;margin-bottom:2px;">📄 Arch</div>
+          <div style="font-size:9px;padding:2px 4px;margin-bottom:2px;">📄 Flow</div>
+          <div style="font-size:9px;padding:2px 4px;">📄 Wire</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Hybrid - Tabs + Drawer</h3>
+      <p>Tabs on top for quick switching between recent docs. A hamburger/menu button opens a drawer for the full document list. Best of both worlds.</p>
+      <div style="display:flex;flex-direction:column;gap:0;margin-top:12px;height:80px;">
+        <div style="height:22px;background:#2d2d2d;border-radius:4px 4px 0 0;display:flex;align-items:center;padding:0 4px;gap:2px;">
+          <div style="background:#37373d;padding:2px 4px;border-radius:2px;font-size:10px;color:#aaa;margin-right:4px;cursor:pointer;">☰</div>
+          <div style="background:#1e1e1e;padding:2px 8px;border-radius:3px 3px 0 0;font-size:9px;color:#fff;">Arch Diagram ×</div>
+          <div style="background:#2d2d2d;padding:2px 8px;font-size:9px;color:#888;">Flow Chart ×</div>
+          <div style="margin-left:auto;font-size:9px;color:#888;padding:0 4px;">+</div>
+        </div>
+        <div style="flex:1;background:#1e1e1e;border-radius:0 0 4px 4px;display:flex;align-items:center;justify-content:center;color:#555;font-size:11px;">Canvas</div>
+      </div>
+    </div>
+  </div>
+</div>
