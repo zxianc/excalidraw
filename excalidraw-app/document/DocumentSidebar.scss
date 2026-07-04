@@ -1,0 +1,11 @@
+.doc-sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 240px; background: var(--color-surface-high); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; transform: translateX(-100%); transition: transform 0.2s ease; z-index: 10; &--open { transform: translateX(0); } }
+.doc-sidebar__toggle { position: fixed; top: 8px; left: 8px; z-index: 11; background: var(--color-surface-high); border: 1px solid var(--border-color); border-radius: 6px; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-primary-color); &:hover { background: var(--color-surface-low); } }
+.doc-sidebar__header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; }
+.doc-sidebar__title { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-secondary-color); text-transform: uppercase; }
+.doc-sidebar__actions { display: flex; gap: 2px; }
+.doc-sidebar__action-btn { background: none; border: none; padding: 4px; cursor: pointer; color: var(--text-secondary-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; &:hover { background: var(--color-surface-low); color: var(--text-primary-color); } }
+.doc-sidebar__footer { padding: 8px 12px; border-top: 1px solid var(--border-color); flex-shrink: 0; }
+.doc-sidebar__overlay { position: fixed; inset: 0; z-index: 99; }
+.doc-sidebar__context-menu { position: fixed; z-index: 100; background: var(--color-surface-high); border: 1px solid var(--border-color); border-radius: 6px; padding: 4px 0; min-width: 160px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); button { display: block; width: 100%; padding: 6px 12px; background: none; border: none; text-align: left; font-size: 13px; cursor: pointer; color: var(--text-primary-color); &:hover { background: var(--color-surface-low); } } }
+.doc-sidebar__context-menu-divider { height: 1px; background: var(--border-color); margin: 4px 0; }
+.doc-sidebar__context-menu-danger { color: var(--color-danger) !important; }
