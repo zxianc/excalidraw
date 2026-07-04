@@ -47,6 +47,10 @@ export const STORAGE_KEYS = {
 
   IDB_LIBRARY: "excalidraw-library",
   IDB_TTD_CHATS: "excalidraw-ttd-chats",
+  IDB_DOCUMENTS: "excalidraw-documents",
+  IDB_MANIFEST: "excalidraw-manifest",
+  LOCAL_STORAGE_ACTIVE_DOC: "excalidraw-active-doc",
+  LOCAL_STORAGE_SYNC_CONFIG: "excalidraw-sync-config",
 
   // do not use apart from migrations
   __LEGACY_LOCAL_STORAGE_LIBRARY: "excalidraw-library",
