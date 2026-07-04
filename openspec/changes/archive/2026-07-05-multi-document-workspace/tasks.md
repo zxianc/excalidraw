@@ -4,7 +4,7 @@
 - [x] 1.2 Create document constants (IDB store names, auto-save debounce, sidebar width) in excalidraw-app/document/constants.ts
 - [x] 1.3 Add new STORAGE_KEYS entries to excalidraw-app/app_constants.ts
 - [x] 1.4 Create StorageAdapter interface in excalidraw-app/storage/StorageAdapter.ts
-- [ ] 1.5 Verify TypeScript compiles with new types
+- [x] 1.5 Verify TypeScript compiles with new types
 
 ## 2. Local Storage: IndexedDB Adapter
 
@@ -16,7 +16,7 @@
 
 - [x] 3.1 Implement S3Adapter with @aws-sdk/client-s3 (getManifest, saveManifest, loadDocument, saveDocument, deleteDocument, getRemoteVersion, testConnection)
 - [x] 3.2 Write unit tests for S3Adapter with mocked S3Client
-- [ ] 3.3 Run tests to confirm S3Adapter passes
+- [x] 3.3 Run tests to confirm S3Adapter passes
 
 ## 4. Sync Engine
 
@@ -55,7 +55,7 @@
 - [ ] 9.1 Integrate DocumentSidebar, ConflictDialog, SettingsDialog components into App.tsx
 - [ ] 9.2 Wire up auto-save to IndexedDB (debounced 500ms on canvas onChange)
 - [ ] 9.3 Implement document switching flow (save current, load target, updateScene)
-- [ ] 9.4 Add keyboard shortcut Cmd/Ctrl+B to toggle sidebar
+- [x] 9.4 Add keyboard shortcut Cmd/Ctrl+B to toggle sidebar
 - [ ] 9.5 Add sidebar-open CSS class to body for layout shift
 - [ ] 9.6 Verify App.tsx integration works end-to-end
 
