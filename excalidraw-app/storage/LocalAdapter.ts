@@ -1,10 +1,7 @@
-import type { StorageAdapter } from "./StorageAdapter";
-import type {
-  DocumentMeta,
-  DocumentData,
-  Manifest,
-} from "../document/types";
 import { DOC_CONSTANTS } from "../document/constants";
+
+import type { StorageAdapter } from "./StorageAdapter";
+import type { DocumentMeta, DocumentData, Manifest } from "../document/types";
 
 const DB_NAME = DOC_CONSTANTS.IDB_STORE;
 const DB_VERSION = 1;

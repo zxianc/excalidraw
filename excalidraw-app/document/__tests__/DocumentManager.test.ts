@@ -1,18 +1,34 @@
 import { describe, it, expect, beforeEach } from "vitest";
+
 import { DocumentManager } from "../DocumentManager";
+
 import type { StorageAdapter } from "../../storage/StorageAdapter";
 import type { Manifest, DocumentData, DocumentMeta } from "../types";
 
 class MockAdapter implements StorageAdapter {
   docs = new Map<string, { data: DocumentData; meta: DocumentMeta }>();
   manifest: Manifest | null = null;
-  async listDocuments() { return Array.from(this.docs.values()).map((d) => d.meta); }
-  async loadDocument(id: string) { return this.docs.get(id)?.data ?? null; }
-  async saveDocument(id: string, data: DocumentData, meta: DocumentMeta) { this.docs.set(id, { data, meta }); }
-  async deleteDocument(id: string) { this.docs.delete(id); }
-  async getManifest() { return this.manifest; }
-  async saveManifest(m: Manifest) { this.manifest = m; }
-  async getRemoteVersion() { return null; }
+  async listDocuments() {
+    return Array.from(this.docs.values()).map((d) => d.meta);
+  }
+  async loadDocument(id: string) {
+    return this.docs.get(id)?.data ?? null;
+  }
+  async saveDocument(id: string, data: DocumentData, meta: DocumentMeta) {
+    this.docs.set(id, { data, meta });
+  }
+  async deleteDocument(id: string) {
+    this.docs.delete(id);
+  }
+  async getManifest() {
+    return this.manifest;
+  }
+  async saveManifest(m: Manifest) {
+    this.manifest = m;
+  }
+  async getRemoteVersion() {
+    return null;
+  }
   async testConnection() {}
 }
 
@@ -67,7 +83,7 @@ describe("DocumentManager", () => {
     const manifest = manager.getManifest();
     expect(manifest!.documents[doc.id].folderId).toBe(folder.id);
     expect(manifest!.folders[folder.id].documents).toContain(doc.id);
-    expect(manifest!.folders["root"].documents).not.toContain(doc.id);
+    expect(manifest!.folders.root.documents).not.toContain(doc.id);
   });
 
   it("should duplicate a document", async () => {

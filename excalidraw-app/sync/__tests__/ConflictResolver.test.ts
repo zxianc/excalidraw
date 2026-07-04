@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
+
 import { ConflictResolver } from "../ConflictResolver";
-import type { DocumentMeta, ConflictInfo } from "../../document/types";
+
+import type { DocumentMeta } from "../../document/types";
 
 const makeMeta = (overrides?: Partial<DocumentMeta>): DocumentMeta => ({
   id: "doc-1",

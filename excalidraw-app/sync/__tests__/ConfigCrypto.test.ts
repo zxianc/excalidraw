@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+
 import { ConfigCrypto } from "../ConfigCrypto";
+
 import type { SyncConfig } from "../../document/types";
 
 const makeConfig = (): SyncConfig => ({
@@ -25,7 +27,9 @@ describe("ConfigCrypto", () => {
   it("should fail to decrypt with wrong password", async () => {
     const config = makeConfig();
     const encrypted = await ConfigCrypto.encrypt(config, "correct-password");
-    await expect(ConfigCrypto.decrypt(encrypted, "wrong-password")).rejects.toThrow();
+    await expect(
+      ConfigCrypto.decrypt(encrypted, "wrong-password"),
+    ).rejects.toThrow();
   });
 
   it("should produce different ciphertext for same input (random IV)", async () => {
@@ -37,7 +41,10 @@ describe("ConfigCrypto", () => {
   });
 
   it("should extract and return config on decrypt regardless of validation", async () => {
-    const encrypted = await ConfigCrypto.encrypt({ notAConfig: true } as any, "password");
+    const encrypted = await ConfigCrypto.encrypt(
+      { notAConfig: true } as any,
+      "password",
+    );
     const result = await ConfigCrypto.decrypt(encrypted, "password");
     expect(result).toBeDefined();
   });

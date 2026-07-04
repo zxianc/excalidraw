@@ -1,7 +1,4 @@
-import type {
-  ExcalidrawElement,
-  OrderedExcalidrawElement,
-} from "@excalidraw/element/types";
+import type { OrderedExcalidrawElement } from "@excalidraw/element/types";
 import type { AppState, BinaryFiles } from "@excalidraw/excalidraw/types";
 
 /** Metadata for a single document (stored in manifest) */

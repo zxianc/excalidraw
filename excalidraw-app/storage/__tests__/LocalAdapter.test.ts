@@ -1,8 +1,13 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { LocalAdapter } from "../LocalAdapter";
-import type { DocumentData, DocumentMeta, Manifest } from "../../document/types";
-
 import "fake-indexeddb/auto";
+import { describe, it, expect, beforeEach } from "vitest";
+
+import { LocalAdapter } from "../LocalAdapter";
+
+import type {
+  DocumentData,
+  DocumentMeta,
+  Manifest,
+} from "../../document/types";
 
 const makeDocMeta = (overrides?: Partial<DocumentMeta>): DocumentMeta => ({
   id: "doc-1",
@@ -25,7 +30,13 @@ const makeDocData = (): DocumentData => ({
 const makeManifest = (): Manifest => ({
   version: 1,
   folders: {
-    root: { id: "root", name: "Root", parentId: null, children: [], documents: ["doc-1"] },
+    root: {
+      id: "root",
+      name: "Root",
+      parentId: null,
+      children: [],
+      documents: ["doc-1"],
+    },
   },
   documents: { "doc-1": makeDocMeta() },
 });

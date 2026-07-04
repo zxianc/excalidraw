@@ -1,6 +1,13 @@
-import type { StorageAdapter } from "../storage/StorageAdapter";
-import type { DocumentMeta, DocumentData, Manifest, ConflictInfo, ConflictChoice, SyncState } from "../document/types";
 import { ConflictResolver } from "./ConflictResolver";
+
+import type { StorageAdapter } from "../storage/StorageAdapter";
+import type {
+  DocumentMeta,
+  Manifest,
+  ConflictInfo,
+  ConflictChoice,
+  SyncState,
+} from "../document/types";
 
 export type SyncResult = "synced" | "conflict" | "skipped" | "error";
 
@@ -29,8 +36,12 @@ export class SyncEngine {
   async syncDocument(docId: string): Promise<SyncResult> {
     const localDocs = await this.local.listDocuments();
     const meta = localDocs.find((d) => d.id === docId);
-    if (!meta) return "error";
-    if (!meta.dirty) return "skipped";
+    if (!meta) {
+      return "error";
+    }
+    if (!meta.dirty) {
+      return "skipped";
+    }
 
     this.emit({ status: "syncing", documentId: docId });
 
@@ -48,10 +59,16 @@ export class SyncEngine {
       }
 
       const data = await this.local.loadDocument(docId);
-      if (!data) return "error";
+      if (!data) {
+        return "error";
+      }
 
       await this.remote.saveDocument(docId, data, meta);
-      const updatedMeta: DocumentMeta = { ...meta, dirty: false, remoteVersion };
+      const updatedMeta: DocumentMeta = {
+        ...meta,
+        dirty: false,
+        remoteVersion,
+      };
       await this.local.saveDocument(docId, data, updatedMeta);
       await this.syncManifestToRemote();
       this.emit({ status: "idle" });
@@ -67,13 +84,19 @@ export class SyncEngine {
 
   async resolveConflict(docId: string, choice: ConflictChoice): Promise<void> {
     const conflict = this.pendingConflicts.get(docId);
-    if (!conflict) return;
+    if (!conflict) {
+      return;
+    }
 
     const localDocs = await this.local.listDocuments();
     const meta = localDocs.find((d) => d.id === docId);
-    if (!meta) return;
+    if (!meta) {
+      return;
+    }
     const data = await this.local.loadDocument(docId);
-    if (!data) return;
+    if (!data) {
+      return;
+    }
 
     switch (choice) {
       case "keep-local":
@@ -97,7 +120,9 @@ export class SyncEngine {
       }
       case "keep-both": {
         const copyName = ConflictResolver.resolveKeepBoth(meta);
-        const copyId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const copyId = `doc-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
         await this.local.saveDocument(copyId, data, {
           ...meta,
           id: copyId,
@@ -130,7 +155,9 @@ export class SyncEngine {
       await this.mergeManifests();
       const localDocs = await this.local.listDocuments();
       for (const meta of localDocs) {
-        if (meta.dirty) await this.syncDocument(meta.id);
+        if (meta.dirty) {
+          await this.syncDocument(meta.id);
+        }
       }
       this.emit({ status: "idle" });
     } catch (err) {
@@ -143,14 +170,18 @@ export class SyncEngine {
 
   private async syncManifestToRemote(): Promise<void> {
     const manifest = await this.local.getManifest();
-    if (manifest) await this.remote.saveManifest(manifest);
+    if (manifest) {
+      await this.remote.saveManifest(manifest);
+    }
   }
 
   private async mergeManifests(): Promise<void> {
     const localManifest = await this.local.getManifest();
     const remoteManifest = await this.remote.getManifest();
     if (!remoteManifest) {
-      if (localManifest) await this.remote.saveManifest(localManifest);
+      if (localManifest) {
+        await this.remote.saveManifest(localManifest);
+      }
       return;
     }
     if (!localManifest) {
@@ -163,10 +194,14 @@ export class SyncEngine {
       documents: { ...remoteManifest.documents },
     };
     for (const [id, m] of Object.entries(localManifest.documents)) {
-      if (!merged.documents[id]) merged.documents[id] = m;
+      if (!merged.documents[id]) {
+        merged.documents[id] = m;
+      }
     }
     for (const [id, f] of Object.entries(localManifest.folders)) {
-      if (!merged.folders[id]) merged.folders[id] = f;
+      if (!merged.folders[id]) {
+        merged.folders[id] = f;
+      }
     }
     await this.local.saveManifest(merged);
     await this.remote.saveManifest(merged);

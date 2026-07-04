@@ -1,8 +1,4 @@
-import type {
-  DocumentMeta,
-  DocumentData,
-  Manifest,
-} from "../document/types";
+import type { DocumentMeta, DocumentData, Manifest } from "../document/types";
 
 /**
  * Abstract storage backend interface.

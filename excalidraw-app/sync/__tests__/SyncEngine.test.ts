@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
 import { SyncEngine } from "../SyncEngine";
+
 import type { StorageAdapter } from "../../storage/StorageAdapter";
-import type { DocumentMeta, DocumentData, Manifest } from "../../document/types";
+import type {
+  DocumentMeta,
+  DocumentData,
+  Manifest,
+} from "../../document/types";
 
 function createMockAdapter(): StorageAdapter & {
   _docs: Map<string, DocumentData>;
@@ -96,11 +102,7 @@ describe("SyncEngine", () => {
   });
 
   it("should skip sync when document is not dirty", async () => {
-    await local.saveDocument(
-      "doc-1",
-      makeData(),
-      makeMeta({ dirty: false }),
-    );
+    await local.saveDocument("doc-1", makeData(), makeMeta({ dirty: false }));
     const result = await engine.syncDocument("doc-1");
     expect(result).toBe("skipped");
     expect(remote.saveDocument).not.toHaveBeenCalled();

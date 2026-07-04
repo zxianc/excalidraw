@@ -147,12 +147,17 @@ import "./index.scss";
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
 import { DocumentSidebar } from "./document/DocumentSidebar";
+
 import { ConflictDialog } from "./document/ConflictDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 
 import { useDocumentManager } from "./document/useDocumentManager";
-import type { ConflictInfo, ConflictChoice, SyncConfig } from "./document/types";
-import { DOC_CONSTANTS } from "./document/constants";
+
+import type {
+  ConflictInfo,
+  ConflictChoice,
+  SyncConfig,
+} from "./document/types";
 import type { CollabAPI } from "./collab/Collab";
 
 polyfill();
@@ -401,7 +406,22 @@ const ExcalidrawWrapper = () => {
 
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { initialized, manifest, activeDocId, syncState, sidebarOpen, setSidebarOpen, createDocument, deleteDocument, renameDocument, duplicateDocument, moveDocument, switchDocument, saveDocumentData, createFolder, renameFolder, deleteFolder } = useDocumentManager();
+  const {
+    initialized,
+    manifest,
+    activeDocId,
+    syncState,
+    sidebarOpen,
+    setSidebarOpen,
+    createDocument,
+    deleteDocument,
+    renameDocument,
+    duplicateDocument,
+    switchDocument,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+  } = useDocumentManager();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
 
@@ -684,8 +704,19 @@ const ExcalidrawWrapper = () => {
     };
   }, [excalidrawAPI]);
 
-  useEffect(() => { const handler = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); setSidebarOpen((prev: boolean) => !prev); } }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler); }, [setSidebarOpen]);
-  useEffect(() => { document.body.classList.toggle("doc-sidebar-open", sidebarOpen); }, [sidebarOpen]);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+        e.preventDefault();
+        setSidebarOpen((prev: boolean) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [setSidebarOpen]);
+  useEffect(() => {
+    document.body.classList.toggle("doc-sidebar-open", sidebarOpen);
+  }, [sidebarOpen]);
 
   const onChange = (
     elements: readonly OrderedExcalidrawElement[],
@@ -805,16 +836,42 @@ const ExcalidrawWrapper = () => {
     [setShareDialogState],
   );
 
-  const handleDocumentSwitch = useCallback(async (docId: string) => {
-    const data = await switchDocument(docId);
-    if (data && excalidrawAPI) {
-      excalidrawAPI.updateScene({ elements: data.elements as any, appState: data.appState });
-      if (Object.keys(data.files).length > 0) excalidrawAPI.addFiles(Object.values(data.files));
-    }
-  }, [switchDocument, excalidrawAPI]);
-  const handleRenameDocument = useCallback((docId: string) => { const name = window.prompt("Enter new name:"); if (name) renameDocument(docId, name); }, [renameDocument]);
-  const handleRenameFolder = useCallback((folderId: string) => { const name = window.prompt("Enter folder name:"); if (name) renameFolder(folderId, name); }, [renameFolder]);
-  const handleConflictResolve = useCallback((choice: ConflictChoice) => { setConflictInfo(null); }, []);
+  const handleDocumentSwitch = useCallback(
+    async (docId: string) => {
+      const data = await switchDocument(docId);
+      if (data && excalidrawAPI) {
+        excalidrawAPI.updateScene({
+          elements: data.elements as any,
+          appState: data.appState as any,
+        });
+        if (Object.keys(data.files).length > 0) {
+          excalidrawAPI.addFiles(Object.values(data.files));
+        }
+      }
+    },
+    [switchDocument, excalidrawAPI],
+  );
+  const handleRenameDocument = useCallback(
+    (docId: string) => {
+      const name = window.prompt("Enter new name:");
+      if (name) {
+        renameDocument(docId, name);
+      }
+    },
+    [renameDocument],
+  );
+  const handleRenameFolder = useCallback(
+    (folderId: string) => {
+      const name = window.prompt("Enter folder name:");
+      if (name) {
+        renameFolder(folderId, name);
+      }
+    },
+    [renameFolder],
+  );
+  const handleConflictResolve = useCallback((choice: ConflictChoice) => {
+    setConflictInfo(null);
+  }, []);
 
   // ---------------------------------------------------------------------------
   // onExport — intercepts file save to wait for pending image loads
@@ -1281,16 +1338,37 @@ const ExcalidrawWrapper = () => {
           />
         )}
 
-{initialized && manifest && (
-  <DocumentSidebar manifest={manifest} activeDocId={activeDocId} syncState={syncState} isOpen={sidebarOpen}
-    onToggle={() => setSidebarOpen((prev: boolean) => !prev)} onDocumentClick={handleDocumentSwitch}
-    onCreateDocument={() => createDocument()} onCreateFolder={() => createFolder("New Folder")}
-    onDeleteDocument={deleteDocument} onRenameDocument={handleRenameDocument}
-    onDuplicateDocument={(id) => duplicateDocument(id)} onDeleteFolder={deleteFolder}
-    onRenameFolder={handleRenameFolder} onOpenSettings={() => setSettingsOpen(true)} />
-)}
-{conflictInfo && <ConflictDialog conflict={conflictInfo} onResolve={handleConflictResolve} onClose={() => setConflictInfo(null)} />}
-<SettingsDialog isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} onConfigSaved={(config: SyncConfig) => {}} onConfigCleared={() => {}} />
+        {initialized && manifest && (
+          <DocumentSidebar
+            manifest={manifest}
+            activeDocId={activeDocId}
+            syncState={syncState}
+            isOpen={sidebarOpen}
+            onToggle={() => setSidebarOpen((prev: boolean) => !prev)}
+            onDocumentClick={handleDocumentSwitch}
+            onCreateDocument={() => createDocument()}
+            onCreateFolder={() => createFolder("New Folder")}
+            onDeleteDocument={deleteDocument}
+            onRenameDocument={handleRenameDocument}
+            onDuplicateDocument={(id) => duplicateDocument(id)}
+            onDeleteFolder={deleteFolder}
+            onRenameFolder={handleRenameFolder}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        )}
+        {conflictInfo && (
+          <ConflictDialog
+            conflict={conflictInfo}
+            onResolve={handleConflictResolve}
+            onClose={() => setConflictInfo(null)}
+          />
+        )}
+        <SettingsDialog
+          isOpen={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          onConfigSaved={(config: SyncConfig) => {}}
+          onConfigCleared={() => {}}
+        />
       </Excalidraw>
     </div>
   );
