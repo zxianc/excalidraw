@@ -67,3 +67,10 @@ export type SyncState =
   | { status: "error"; message: string }
   | { status: "offline" }
   | { status: "conflict"; conflict: ConflictInfo };
+
+/** Represents an item currently being renamed inline */
+export interface EditingItem {
+  type: "document" | "folder";
+  id: string;
+  name: string;
+}

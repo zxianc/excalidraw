@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 
 import "./FolderTree.scss";
 
 import type { DocumentMeta, FolderNode, Manifest } from "./types";
+import type { EditingItem } from "./types";
 
 interface FolderTreeProps {
   manifest: Manifest;
@@ -11,21 +12,92 @@ interface FolderTreeProps {
   onDocumentClick: (docId: string) => void;
   onDocumentContextMenu: (docId: string, e: React.MouseEvent) => void;
   onFolderContextMenu: (folderId: string, e: React.MouseEvent) => void;
+  editingItem: EditingItem | null;
+  onRenameCommit: (
+    type: "document" | "folder",
+    id: string,
+    name: string,
+  ) => void;
+  onRenameCancel: () => void;
 }
+
+// ---------------------------------------------------------------------------
+// Inline rename input (replaces the name span)
+// ---------------------------------------------------------------------------
+
+const InlineRenameInput: React.FC<{
+  initialName: string;
+  onCommit: (name: string) => void;
+  onCancel: () => void;
+}> = ({ initialName, onCommit, onCancel }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    input.focus();
+    // Select everything except the file extension (if any)
+    const dot = input.value.lastIndexOf(".");
+    if (dot > 0) {
+      input.setSelectionRange(0, dot);
+    } else {
+      input.select();
+    }
+  }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onCommit(inputRef.current?.value ?? initialName);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
+  };
+
+  return (
+    <input
+      ref={inputRef}
+      className="folder-tree__inline-input"
+      defaultValue={initialName}
+      onKeyDown={handleKeyDown}
+      onBlur={() => onCommit(inputRef.current?.value ?? initialName)}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Document item
+// ---------------------------------------------------------------------------
 
 const DocumentItem: React.FC<{
   doc: DocumentMeta;
   isActive: boolean;
+  isEditing: boolean;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
-}> = ({ doc, isActive, onClick, onContextMenu }) => (
+  onRenameCommit: (name: string) => void;
+  onRenameCancel: () => void;
+}> = ({
+  doc,
+  isActive,
+  isEditing,
+  onClick,
+  onContextMenu,
+  onRenameCommit,
+  onRenameCancel,
+}) => (
   <div
     className={clsx("folder-tree__doc", {
       "folder-tree__doc--active": isActive,
+      "folder-tree__doc--editing": isEditing,
     })}
-    onClick={onClick}
+    onClick={isEditing ? undefined : onClick}
     onContextMenu={onContextMenu}
-    title={doc.name}
+    title={isEditing ? undefined : doc.name}
   >
     <svg
       className="folder-tree__doc-icon"
@@ -39,10 +111,22 @@ const DocumentItem: React.FC<{
         fillOpacity="0.7"
       />
     </svg>
-    <span className="folder-tree__doc-name">{doc.name}</span>
-    {doc.dirty && <span className="folder-tree__doc-dirty" />}
+    {isEditing ? (
+      <InlineRenameInput
+        initialName={doc.name}
+        onCommit={onRenameCommit}
+        onCancel={onRenameCancel}
+      />
+    ) : (
+      <span className="folder-tree__doc-name">{doc.name}</span>
+    )}
+    {!isEditing && doc.dirty && <span className="folder-tree__doc-dirty" />}
   </div>
 );
+
+// ---------------------------------------------------------------------------
+// Folder item
+// ---------------------------------------------------------------------------
 
 interface FolderItemProps {
   folder: FolderNode;
@@ -53,6 +137,13 @@ interface FolderItemProps {
   onDocumentClick: (docId: string) => void;
   onDocumentContextMenu: (docId: string, e: React.MouseEvent) => void;
   onFolderContextMenu: (folderId: string, e: React.MouseEvent) => void;
+  editingItem: EditingItem | null;
+  onRenameCommit: (
+    type: "document" | "folder",
+    id: string,
+    name: string,
+  ) => void;
+  onRenameCancel: () => void;
 }
 
 const FolderItem: React.FC<FolderItemProps> = ({
@@ -64,15 +155,23 @@ const FolderItem: React.FC<FolderItemProps> = ({
   onDocumentClick,
   onDocumentContextMenu,
   onFolderContextMenu,
+  editingItem,
+  onRenameCommit,
+  onRenameCancel,
 }) => {
   const isExpanded = expandedFolders.has(folder.id);
   const isRoot = folder.id === "root";
+  const isEditing =
+    editingItem?.type === "folder" && editingItem.id === folder.id;
+
   return (
     <div className="folder-tree__folder">
       {!isRoot && (
         <div
-          className="folder-tree__folder-header"
-          onClick={() => toggleFolder(folder.id)}
+          className={clsx("folder-tree__folder-header", {
+            "folder-tree__folder-header--editing": isEditing,
+          })}
+          onClick={isEditing ? undefined : () => toggleFolder(folder.id)}
           onContextMenu={(e) => onFolderContextMenu(folder.id, e)}
         >
           <svg
@@ -102,7 +201,15 @@ const FolderItem: React.FC<FolderItemProps> = ({
               fillOpacity="0.8"
             />
           </svg>
-          <span className="folder-tree__folder-name">{folder.name}</span>
+          {isEditing ? (
+            <InlineRenameInput
+              initialName={folder.name}
+              onCommit={(name) => onRenameCommit("folder", folder.id, name)}
+              onCancel={onRenameCancel}
+            />
+          ) : (
+            <span className="folder-tree__folder-name">{folder.name}</span>
+          )}
         </div>
       )}
       {(isRoot || isExpanded) && (
@@ -127,6 +234,9 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 onDocumentClick={onDocumentClick}
                 onDocumentContextMenu={onDocumentContextMenu}
                 onFolderContextMenu={onFolderContextMenu}
+                editingItem={editingItem}
+                onRenameCommit={onRenameCommit}
+                onRenameCancel={onRenameCancel}
               />
             );
           })}
@@ -135,13 +245,20 @@ const FolderItem: React.FC<FolderItemProps> = ({
             if (!doc) {
               return null;
             }
+            const docEditing =
+              editingItem?.type === "document" && editingItem.id === docId;
             return (
               <DocumentItem
                 key={docId}
                 doc={doc}
                 isActive={docId === activeDocId}
+                isEditing={docEditing}
                 onClick={() => onDocumentClick(docId)}
                 onContextMenu={(e) => onDocumentContextMenu(docId, e)}
+                onRenameCommit={(name) =>
+                  onRenameCommit("document", docId, name)
+                }
+                onRenameCancel={onRenameCancel}
               />
             );
           })}
@@ -151,12 +268,19 @@ const FolderItem: React.FC<FolderItemProps> = ({
   );
 };
 
+// ---------------------------------------------------------------------------
+// Top-level tree
+// ---------------------------------------------------------------------------
+
 export const FolderTree: React.FC<FolderTreeProps> = ({
   manifest,
   activeDocId,
   onDocumentClick,
   onDocumentContextMenu,
   onFolderContextMenu,
+  editingItem,
+  onRenameCommit,
+  onRenameCancel,
 }) => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(["root"]),
@@ -187,6 +311,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         onDocumentClick={onDocumentClick}
         onDocumentContextMenu={onDocumentContextMenu}
         onFolderContextMenu={onFolderContextMenu}
+        editingItem={editingItem}
+        onRenameCommit={onRenameCommit}
+        onRenameCancel={onRenameCancel}
       />
     </div>
   );

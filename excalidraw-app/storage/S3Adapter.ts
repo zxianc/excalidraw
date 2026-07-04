@@ -1,10 +1,4 @@
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  HeadObjectCommand,
-} from "@aws-sdk/client-s3";
+import COS from "cos-js-sdk-v5";
 
 import { DOC_CONSTANTS } from "../document/constants";
 
@@ -16,21 +10,28 @@ import type {
   SyncConfig,
 } from "../document/types";
 
+/**
+ * Tencent COS adapter — uses cos-js-sdk-v5 (native COS protocol).
+ * Also compatible with S3-compatible object storage via custom Domain.
+ */
 export class S3Adapter implements StorageAdapter {
-  private client: S3Client;
+  private cos: COS;
   private config: SyncConfig;
 
   constructor(config: SyncConfig) {
     this.config = config;
-    this.client = new S3Client({
-      endpoint: config.endpoint,
-      region: config.region || "us-east-1",
-      credentials: {
-        accessKeyId: config.accessKey,
-        secretAccessKey: config.secretKey,
-      },
-      forcePathStyle: true,
-    });
+    const opts: COS.COSOptions = {
+      SecretId: config.accessKey,
+      SecretKey: config.secretKey,
+      Protocol: "https:",
+    };
+    if (config.endpoint) {
+      const domain = config.endpoint
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "");
+      opts.Domain = domain.includes("{Bucket}") ? domain : `{Bucket}.${domain}`;
+    }
+    this.cos = new COS(opts);
   }
 
   private key(path: string): string {
@@ -44,39 +45,56 @@ export class S3Adapter implements StorageAdapter {
     return `${meta.folderId}/${meta.id}.excalidraw`;
   }
 
-  private async getObject(key: string): Promise<string | null> {
-    try {
-      const resp = await this.client.send(
-        new GetObjectCommand({
-          Bucket: this.config.bucket,
-          Key: this.key(key),
-        }),
-      );
-      const bytes = await resp.Body!.transformToByteArray();
-      return new TextDecoder().decode(bytes);
-    } catch (err: any) {
-      if (err.name === "NoSuchKey" || err.$metadata?.httpStatusCode === 404) {
-        return null;
-      }
-      throw err;
-    }
+  private getRegion(): string {
+    return this.config.region || "ap-guangzhou";
   }
 
-  private async putObject(
-    key: string,
-    body: string,
-    contentType = "application/json",
-  ): Promise<string | null> {
-    const resp = await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.config.bucket,
-        Key: this.key(key),
-        Body: body,
-        ContentType: contentType,
-      }),
-    );
-    return resp.ETag ?? null;
+  private async getObject(key: string): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+      this.cos.getObject(
+        {
+          Bucket: this.config.bucket,
+          Region: this.getRegion(),
+          Key: this.key(key),
+        },
+        (err, data) => {
+          if (err) {
+            if (err.statusCode === 404 || err.code === "NoSuchKey") {
+              resolve(null);
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve(data.Body as string);
+          }
+        },
+      );
+    });
   }
+
+  private async putObject(key: string, body: string): Promise<string | null> {
+    return new Promise((resolve, reject) => {
+      this.cos.putObject(
+        {
+          Bucket: this.config.bucket,
+          Region: this.getRegion(),
+          Key: this.key(key),
+          Body: body,
+          ContentType: "application/json",
+        },
+        (err, data) => {
+          if (err) {
+            reject(err);
+          } else {
+            const etag = data.headers?.["etag"] || data.ETag || null;
+            resolve(etag);
+          }
+        },
+      );
+    });
+  }
+
+  // ---- StorageAdapter implementation ----
 
   async listDocuments(): Promise<DocumentMeta[]> {
     const manifest = await this.getManifest();
@@ -110,12 +128,22 @@ export class S3Adapter implements StorageAdapter {
       return;
     }
     const meta = manifest.documents[id];
-    await this.client.send(
-      new DeleteObjectCommand({
-        Bucket: this.config.bucket,
-        Key: this.key(this.docPath(meta)),
-      }),
-    );
+    return new Promise((resolve, reject) => {
+      this.cos.deleteObject(
+        {
+          Bucket: this.config.bucket,
+          Region: this.getRegion(),
+          Key: this.key(this.docPath(meta)),
+        },
+        (err) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        },
+      );
+    });
   }
 
   async getManifest(): Promise<Manifest | null> {
@@ -139,36 +167,52 @@ export class S3Adapter implements StorageAdapter {
       return null;
     }
     const meta = manifest.documents[docId];
-    try {
-      const resp = await this.client.send(
-        new HeadObjectCommand({
+    return new Promise((resolve, reject) => {
+      this.cos.headObject(
+        {
           Bucket: this.config.bucket,
+          Region: this.getRegion(),
           Key: this.key(this.docPath(meta)),
-        }),
+        },
+        (err, data) => {
+          if (err) {
+            if (err.statusCode === 404 || err.code === "NotFound") {
+              resolve(null);
+            } else {
+              reject(err);
+            }
+          } else {
+            resolve(data.headers?.["etag"] ?? null);
+          }
+        },
       );
-      return resp.ETag ?? null;
-    } catch (err: any) {
-      if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
-        return null;
-      }
-      throw err;
-    }
+    });
   }
 
   async testConnection(): Promise<void> {
-    try {
-      await this.client.send(
-        new HeadObjectCommand({
+    return new Promise((resolve, reject) => {
+      this.cos.headObject(
+        {
           Bucket: this.config.bucket,
+          Region: this.getRegion(),
           Key: this.key(DOC_CONSTANTS.MANIFEST_FILENAME),
-        }),
+        },
+        (err) => {
+          if (err) {
+            if (err.statusCode === 404 || err.code === "NotFound") {
+              resolve();
+            } else {
+              reject(
+                new Error(
+                  `COS connection failed: ${err.message || "Unknown error"}`,
+                ),
+              );
+            }
+          } else {
+            resolve();
+          }
+        },
       );
-    } catch (err: any) {
-      if (err.name !== "NotFound" && err.$metadata?.httpStatusCode !== 404) {
-        throw new Error(
-          `S3 connection failed: ${err.message || "Unknown error"}`,
-        );
-      }
-    }
+    });
   }
 }

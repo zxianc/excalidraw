@@ -6,7 +6,7 @@ import { SyncStatus } from "./SyncStatus";
 
 import "./DocumentSidebar.scss";
 
-import type { Manifest, SyncState } from "./types";
+import type { EditingItem, Manifest, SyncState } from "./types";
 
 interface DocumentSidebarProps {
   manifest: Manifest;
@@ -18,11 +18,12 @@ interface DocumentSidebarProps {
   onCreateDocument: (parentFolderId?: string) => void;
   onCreateFolder: (parentFolderId?: string) => void;
   onDeleteDocument: (docId: string) => void;
-  onRenameDocument: (docId: string) => void;
+  onRenameDocument: (docId: string, name: string) => void;
   onDuplicateDocument: (docId: string) => void;
   onDeleteFolder: (folderId: string) => void;
-  onRenameFolder: (folderId: string) => void;
+  onRenameFolder: (folderId: string, name: string) => void;
   onOpenSettings: () => void;
+  onSyncAll: () => void;
 }
 interface ContextMenuState {
   x: number;
@@ -46,8 +47,10 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
   onDeleteFolder,
   onRenameFolder,
   onOpenSettings,
+  onSyncAll,
 }) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +79,27 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
     [],
   );
   const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  // Commit a rename from the inline editor
+  const handleRenameCommit = useCallback(
+    (type: "document" | "folder", id: string, name: string) => {
+      const trimmed = name.trim();
+      if (trimmed) {
+        if (type === "document") {
+          onRenameDocument(id, trimmed);
+        } else {
+          onRenameFolder(id, trimmed);
+        }
+      }
+      setEditingItem(null);
+    },
+    [onRenameDocument, onRenameFolder],
+  );
+
+  const handleRenameCancel = useCallback(() => {
+    setEditingItem(null);
+  }, []);
+
   const handleMenuAction = useCallback(
     (action: string) => {
       if (!contextMenu) {
@@ -83,13 +107,15 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
       }
       const { type, id } = contextMenu;
       switch (action) {
-        case "rename":
-          if (type === "document") {
-            onRenameDocument(id);
-          } else {
-            onRenameFolder(id);
-          }
+        case "rename": {
+          // Use inline editing instead of prompt
+          const name =
+            type === "document"
+              ? manifest.documents[id]?.name ?? ""
+              : manifest.folders[id]?.name ?? "";
+          setEditingItem({ type, id, name });
           break;
+        }
         case "delete":
           if (type === "document") {
             onDeleteDocument(id);
@@ -113,10 +139,9 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
     },
     [
       contextMenu,
-      onRenameDocument,
+      manifest,
       onDeleteDocument,
       onDuplicateDocument,
-      onRenameFolder,
       onDeleteFolder,
       onCreateDocument,
       onCreateFolder,
@@ -194,9 +219,31 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
               onDocumentClick={onDocumentClick}
               onDocumentContextMenu={handleDocumentContextMenu}
               onFolderContextMenu={handleFolderContextMenu}
+              editingItem={editingItem}
+              onRenameCommit={handleRenameCommit}
+              onRenameCancel={handleRenameCancel}
             />
             <div className="doc-sidebar__footer">
               <SyncStatus state={syncState} />
+              <button
+                className="doc-sidebar__sync-all-btn"
+                onClick={onSyncAll}
+                title="Sync all documents"
+                aria-label="Sync All"
+              >
+                <svg
+                  viewBox="0 0 16 16"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                >
+                  <path d="M2 8a6 6 0 0 1 10.47-4M14 8a6 6 0 0 1-10.47 4" />
+                  <polyline points="2,4 2,8 6,8" />
+                  <polyline points="14,12 12,8 8,8" />
+                </svg>
+              </button>
             </div>
           </>
         )}

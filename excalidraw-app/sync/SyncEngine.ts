@@ -64,10 +64,12 @@ export class SyncEngine {
       }
 
       await this.remote.saveDocument(docId, data, meta);
+      // Fetch the ETag *after* the upload so local tracking is correct
+      const freshRemoteVersion = await this.remote.getRemoteVersion(docId);
       const updatedMeta: DocumentMeta = {
         ...meta,
         dirty: false,
-        remoteVersion,
+        remoteVersion: freshRemoteVersion,
       };
       await this.local.saveDocument(docId, data, updatedMeta);
       await this.syncManifestToRemote();
@@ -101,11 +103,14 @@ export class SyncEngine {
     switch (choice) {
       case "keep-local":
         await this.remote.saveDocument(docId, data, meta);
-        await this.local.saveDocument(docId, data, {
-          ...meta,
-          dirty: false,
-          remoteVersion: conflict.remoteVersion,
-        });
+        {
+          const freshETag = await this.remote.getRemoteVersion(docId);
+          await this.local.saveDocument(docId, data, {
+            ...meta,
+            dirty: false,
+            remoteVersion: freshETag,
+          });
+        }
         break;
       case "use-remote": {
         const remoteData = await this.remote.loadDocument(docId);
@@ -168,14 +173,14 @@ export class SyncEngine {
     }
   }
 
-  private async syncManifestToRemote(): Promise<void> {
+  public async syncManifestToRemote(): Promise<void> {
     const manifest = await this.local.getManifest();
     if (manifest) {
       await this.remote.saveManifest(manifest);
     }
   }
 
-  private async mergeManifests(): Promise<void> {
+  public async mergeManifests(): Promise<void> {
     const localManifest = await this.local.getManifest();
     const remoteManifest = await this.remote.getManifest();
     if (!remoteManifest) {

@@ -47,6 +47,8 @@ export function useDocumentManager() {
             const engine = new SyncEngine(localAdapter, remoteAdapter);
             syncEngineRef.current = engine;
             engine.onStateChange(setSyncState);
+            // Do a full sync on startup to pull remote changes
+            engine.fullSync().catch(() => {});
           }
         } catch {
           /* invalid config */
@@ -70,10 +72,12 @@ export function useDocumentManager() {
       if (!manager) {
         return null;
       }
-      // Optimistic: persist in background, update UI immediately
       const doc = manager.createDocumentSync(name, parentFolderId);
       refreshManifest();
       await manager.finalizeCreateDocument(doc);
+      // Sync manifest to remote for new doc
+      syncEngineRef.current?.syncManifestToRemote?.() ??
+        syncEngineRef.current?.fullSync()?.catch(() => {});
       return doc;
     },
     [manager, refreshManifest],
@@ -88,6 +92,7 @@ export function useDocumentManager() {
       if (activeDocId === id) {
         setActiveDocId(null);
       }
+      syncEngineRef.current?.fullSync()?.catch(() => {});
     },
     [manager, refreshManifest, activeDocId, setActiveDocId],
   );
@@ -98,6 +103,7 @@ export function useDocumentManager() {
       }
       await manager.renameDocument(id, name);
       refreshManifest();
+      syncEngineRef.current?.syncDocument(id)?.catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -108,6 +114,7 @@ export function useDocumentManager() {
       }
       const doc = await manager.duplicateDocument(id);
       refreshManifest();
+      syncEngineRef.current?.fullSync()?.catch(() => {});
       return doc;
     },
     [manager, refreshManifest],
@@ -140,6 +147,7 @@ export function useDocumentManager() {
       }
       await manager.saveDocumentData(id, data);
       refreshManifest();
+      // Remote sync is triggered separately via syncToRemote (30s idle debounce or explicit)
     },
     [manager, refreshManifest],
   );
@@ -148,10 +156,10 @@ export function useDocumentManager() {
       if (!manager) {
         return null;
       }
-      // Optimistic: persist in background, update UI immediately
       const folder = manager.createFolderSync(name, parentId);
       refreshManifest();
       await manager.finalizeCreateFolder(folder);
+      syncEngineRef.current?.fullSync()?.catch(() => {});
       return folder;
     },
     [manager, refreshManifest],
@@ -163,6 +171,7 @@ export function useDocumentManager() {
       }
       await manager.renameFolder(id, name);
       refreshManifest();
+      syncEngineRef.current?.fullSync()?.catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -173,9 +182,20 @@ export function useDocumentManager() {
       }
       await manager.deleteFolder(id);
       refreshManifest();
+      syncEngineRef.current?.fullSync()?.catch(() => {});
     },
     [manager, refreshManifest],
   );
+
+  // Expose sync engine for debounced auto-save triggers from App.tsx
+  const syncToRemote = useCallback((docId: string) => {
+    syncEngineRef.current?.syncDocument(docId)?.catch(() => {});
+  }, []);
+
+  // Full sync all dirty docs + merge manifests
+  const syncAll = useCallback(() => {
+    syncEngineRef.current?.fullSync()?.catch(() => {});
+  }, []);
 
   return {
     initialized,
@@ -194,6 +214,8 @@ export function useDocumentManager() {
     createFolder,
     renameFolder,
     deleteFolder,
+    syncToRemote,
+    syncAll,
     getManager: () => manager,
   };
 }
