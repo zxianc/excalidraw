@@ -24,9 +24,10 @@ function createMockAdapter(): StorageAdapter & {
     listDocuments: vi.fn(async () => Array.from(metas.values())),
     loadDocument: vi.fn(async (id: string) => docs.get(id) ?? null),
     saveDocument: vi.fn(
-      async (id: string, data: DocumentData, meta: DocumentMeta) => {
+      async (id: string, data: DocumentData, meta: DocumentMeta): Promise<string | null> => {
         docs.set(id, data);
         metas.set(id, meta);
+        return null;
       },
     ),
     deleteDocument: vi.fn(async (id: string) => {

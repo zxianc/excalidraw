@@ -85,6 +85,7 @@ export class SyncEngine {
 
         let copyId: string | null = null;
         let copyName: string | null = null;
+        let copyRemoteVersion: string | null = null;
 
         if (remoteData) {
           // 1. Overwrite local document with remote version
@@ -118,12 +119,14 @@ export class SyncEngine {
           };
           await this.local.saveDocument(copyId, localData, copyMeta);
 
-          // 3. Push conflict copy to remote so other devices see it
-          const copyETag = await this.remote.saveDocument(copyId, localData, copyMeta);
-          // Track remoteVersion so the copy does not conflict on next switch
-          copyMeta.remoteVersion = copyETag;
+          // 3. Push conflict copy to remote so other devices see it.
+          // Use the ETag returned by saveDocument directly instead of
+          // calling getRemoteVersion (which requires the manifest to be
+          // pushed first — a chicken-and-egg problem).
+          copyRemoteVersion = await this.remote.saveDocument(copyId, localData, copyMeta);
+          copyMeta.remoteVersion = copyRemoteVersion;
           await this.local.saveDocument(copyId, localData, copyMeta);
-          console.log(`[syncDocument] conflict: pushed copy to remote, ETag=${copyETag}`);
+          console.log(`[syncDocument] conflict: pushed copy to remote, ETag=${copyRemoteVersion}`);
         }
 
         // 4. Rebuild local manifest so reloadManifest() picks up the new state
@@ -158,16 +161,16 @@ export class SyncEngine {
               id: copyId,
               name: copyName,
               dirty: false,
-              remoteVersion: copyETag ?? null,
+              remoteVersion: copyRemoteVersion,
               isConflictCopy: true,
               conflictCopyCreatedAt: Date.now(),
               createdAt: Date.now(),
               updatedAt: Date.now(),
             };
-            // Add the copy to the root folder so it appears in the tree
-            const rootFolder = currentManifest.folders["root"];
-            if (rootFolder && !rootFolder.documents.includes(copyId)) {
-              rootFolder.documents.push(copyId);
+            // Place the copy in the same folder as the original
+            const parentFolder = currentManifest.folders[meta.folderId] || currentManifest.folders["root"];
+            if (parentFolder && !parentFolder.documents.includes(copyId)) {
+              parentFolder.documents.push(copyId);
             }
           }
 

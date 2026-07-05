@@ -14,8 +14,8 @@ class MockAdapter implements StorageAdapter {
   async loadDocument(id: string) {
     return this.docs.get(id)?.data ?? null;
   }
-  async saveDocument(id: string, data: DocumentData, meta: DocumentMeta) {
-    this.docs.set(id, { data, meta });
+  async saveDocument(id: string, data: DocumentData, meta: DocumentMeta): Promise<string | null> {
+    this.docs.set(id, { data, meta }); return null;
   }
   async deleteDocument(id: string) {
     this.docs.delete(id);

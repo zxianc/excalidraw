@@ -124,7 +124,8 @@ export function useDocumentManager() {
       if (activeDocId === id) {
         setActiveDocId(null);
       }
-      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest so other devices see the deletion
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
     },
     [manager, refreshManifest, activeDocId, setActiveDocId],
   );
@@ -135,7 +136,9 @@ export function useDocumentManager() {
       }
       await manager.renameDocument(id, name);
       refreshManifest();
-      syncEngineRef.current?.syncDocument(id)?.catch(() => {});
+      // Rename only changes manifest metadata, not document content.
+      // Push the manifest so other devices see the name on their next fullSync.
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -146,7 +149,8 @@ export function useDocumentManager() {
       }
       const doc = await manager.duplicateDocument(id);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest so other devices see the duplicate
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
       return doc;
     },
     [manager, refreshManifest],
@@ -158,6 +162,8 @@ export function useDocumentManager() {
       }
       await manager.moveDocument(docId, folderId);
       refreshManifest();
+      // Push manifest so other devices see the moved document
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -204,7 +210,8 @@ export function useDocumentManager() {
       const folder = manager.createFolderSync(name, parentId);
       refreshManifest();
       await manager.finalizeCreateFolder(folder);
-      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest so other devices see the new folder
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
       return folder;
     },
     [manager, refreshManifest],
@@ -216,7 +223,8 @@ export function useDocumentManager() {
       }
       await manager.renameFolder(id, name);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest so other devices see the renamed folder on their next fullSync
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -227,7 +235,8 @@ export function useDocumentManager() {
       }
       await manager.deleteFolder(id);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest so other devices see the deletion
+      syncEngineRef.current?.syncManifestToRemote?.()?.catch(() => {});
     },
     [manager, refreshManifest],
   );

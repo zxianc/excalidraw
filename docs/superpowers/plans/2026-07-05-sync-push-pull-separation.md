@@ -783,3 +783,28 @@ git commit -m "fix: mark new documents dirty so switch-push includes them"
 **Root cause:** When `syncDocument` creates a conflict copy, the copy was pushed to COS with `remoteVersion: null` in both `META_STORE` and `MANIFEST_STORE`. Switching away from the copy → `syncDocument` saw `remoteVersion: null` + remote exists → false conflict → new copy.
 
 **Fix:** After pushing the copy, retrieve its ETag and save it back to both stores, so the copy's `remoteVersion` matches the remote state.
+
+
+---
+
+## 2026-07-06 Bug Fixes (Completed)
+
+### Fix 6: Conflict copy placed in wrong folder + copyVersion reference error
+**Root cause:** Conflict copies were hardcoded to root folder. Also `copyETag` was declared with `const` inside an `if (localData)` block, unreachable from the manifest rebuild section below — `ReferenceError: copyETag is not defined`.
+
+**Fix:**
+- `SyncEngine.ts`: Copy placed in same folder as original (`meta.folderId`), fallback to root.
+- `SyncEngine.ts`: `copyRemoteVersion` declared at outer scope with `let`, assigned via `remote.getRemoteVersion(copyId)`.
+
+### Fix 7: Conflict copies always re-trigger conflict on switch (copyVersion = null)
+**Root cause:** `saveDocument` returned `void`, so the copy's ETag was never captured. `getRemoteVersion(copyId)` was called to fetch it, but that method depends on the remote manifest — which hadn't been pushed yet (chicken-and-egg). Result: copy's `remoteVersion` always stayed `null` → next switch detected conflict → infinite copy chain.
+
+**Fix:**
+- `StorageAdapter.saveDocument` interface returns `string | null` (CO S returns ETag, LocalAdapter returns null).
+- `S3Adapter.saveDocument` returns `putObject` ETag directly.
+- `SyncEngine.ts` conflict handler uses `saveDocument` return value directly.
+
+### Fix 8: Metadata-only operations (rename, move, delete, create folder) overwrote local changes
+**Root cause:** Six hooks (`renameDocument`, `renameFolder`, `moveDocument`, `deleteDocument`, `createFolder`, `deleteFolder`, `duplicateDocument`) were calling `fullSync()` after making local changes — pulling remote data over the local changes before they were pushed. Renames and moves were immediately clobbered.
+
+**Fix:** All six hooks switched from `fullSync()` to `syncManifestToRemote()` — push-only for metadata changes. Full sync is for pulling, not pushing.

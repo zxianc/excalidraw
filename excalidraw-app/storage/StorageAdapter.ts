@@ -11,12 +11,12 @@ export interface StorageAdapter {
   /** Load full document data by ID */
   loadDocument(id: string): Promise<DocumentData | null>;
 
-  /** Save full document data */
+  /** Save full document data, returns remote ETag (or null for local-only) */
   saveDocument(
     id: string,
     data: DocumentData,
     meta: DocumentMeta,
-  ): Promise<void>;
+  ): Promise<string | null>;
 
   /** Delete a document and its data */
   deleteDocument(id: string): Promise<void>;

@@ -118,9 +118,10 @@ export class S3Adapter implements StorageAdapter {
     id: string,
     data: DocumentData,
     meta: DocumentMeta,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const etag = await this.putObject(this.docPath(meta), JSON.stringify(data));
     console.log(`[S3Adapter.saveDocument] doc=${id} ETag=${etag}`);
+    return etag;
   }
 
   async deleteDocument(id: string): Promise<void> {

@@ -73,10 +73,11 @@ export class LocalAdapter implements StorageAdapter {
     id: string,
     data: DocumentData,
     meta: DocumentMeta,
-  ): Promise<void> {
+  ): Promise<string | null> {
     const db = await this.getDB();
     await tx(db, DOCS_STORE, "readwrite", (store) => store.put(data, id));
     await tx(db, META_STORE, "readwrite", (store) => store.put(meta));
+    return null;
   }
 
   async deleteDocument(id: string): Promise<void> {
