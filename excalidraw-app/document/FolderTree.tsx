@@ -5,6 +5,19 @@ import "./FolderTree.scss";
 
 import type { DocumentMeta, FolderNode, Manifest } from "./types";
 import type { EditingItem } from "./types";
+// ---------------------------------------------------------------------------
+// Conflict copy highlight — expires after 24 hours
+// ---------------------------------------------------------------------------
+
+const CONFLICT_HIGHLIGHT_DURATION = 24 * 60 * 60 * 1000;
+
+function isConflictCopyExpired(doc: DocumentMeta): boolean {
+  if (!doc.conflictCopyCreatedAt) {
+    return true;
+  }
+  return Date.now() - doc.conflictCopyCreatedAt > CONFLICT_HIGHLIGHT_DURATION;
+}
+
 
 interface FolderTreeProps {
   manifest: Manifest;
@@ -94,10 +107,18 @@ const DocumentItem: React.FC<{
     className={clsx("folder-tree__doc", {
       "folder-tree__doc--active": isActive,
       "folder-tree__doc--editing": isEditing,
+      "folder-tree__doc--conflict-copy":
+        doc.isConflictCopy && !isConflictCopyExpired(doc),
     })}
     onClick={isEditing ? undefined : onClick}
     onContextMenu={onContextMenu}
-    title={isEditing ? undefined : doc.name}
+    title={
+      isEditing
+        ? undefined
+        : doc.isConflictCopy && !isConflictCopyExpired(doc)
+          ? `${doc.name} — auto-saved from device conflict`
+          : doc.name
+    }
   >
     <svg
       className="folder-tree__doc-icon"
