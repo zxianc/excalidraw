@@ -154,16 +154,70 @@ export class SyncEngine {
     this.emit({ status: "idle" });
   }
 
+  /**
+   * Pull-only full sync: fetch remote changes into local IndexedDB.
+   * Push is handled separately on document switch (syncDocument).
+   */
   async fullSync(): Promise<void> {
     this.emit({ status: "syncing", documentId: "*" });
     try {
-      await this.mergeManifests();
+      const remoteManifest = await this.remote.getManifest();
+      if (!remoteManifest) {
+        // No remote data — nothing to pull
+        this.emit({ status: "idle" });
+        return;
+      }
+
       const localDocs = await this.local.listDocuments();
-      for (const meta of localDocs) {
-        if (meta.dirty) {
-          await this.syncDocument(meta.id);
+      const localManifest = await this.local.getManifest();
+      const localMap = new Map(
+        localDocs.map((d) => [d.id, d] as const),
+      );
+
+      // Pull docs where remote version is newer or doc is missing locally
+      for (const [docId, remoteMeta] of Object.entries(
+        remoteManifest.documents,
+      )) {
+        const localMeta = localMap.get(docId);
+        const needsPull =
+          !localMeta ||
+          (remoteMeta.version &&
+            (!localMeta.version || remoteMeta.version > localMeta.version));
+        if (needsPull) {
+          const remoteData = await this.remote.loadDocument(docId);
+          if (remoteData) {
+            await this.local.saveDocument(docId, remoteData, {
+              ...remoteMeta,
+              dirty: false,
+            });
+          }
         }
       }
+
+      // Merge manifests: remote is the source of truth, but preserve
+      // local-only documents that aren't on remote yet
+      const merged: Manifest = {
+        version: Math.max(
+          (localManifest?.version ?? 0),
+          remoteManifest.version,
+        ) + 1,
+        folders: { ...remoteManifest.folders },
+        documents: { ...remoteManifest.documents },
+      };
+      if (localManifest) {
+        for (const [id, m] of Object.entries(localManifest.documents)) {
+          if (!merged.documents[id]) {
+            merged.documents[id] = m;
+          }
+        }
+        for (const [id, f] of Object.entries(localManifest.folders)) {
+          if (!merged.folders[id]) {
+            merged.folders[id] = f;
+          }
+        }
+      }
+      await this.local.saveManifest(merged);
+
       this.emit({ status: "idle" });
     } catch (err) {
       this.emit({
