@@ -43,6 +43,17 @@ export class DocumentManager {
     }
   }
 
+
+  /**
+   * Reload the manifest from storage after a fullSync.
+   */
+  async reloadManifest(): Promise<void> {
+    const refreshed = await this.adapter.getManifest();
+    if (refreshed) {
+      this.manifest = refreshed;
+    }
+  }
+
   getManifest(): Manifest {
     // Return a shallow clone so React detects state changes immediately
     return {
@@ -74,7 +85,7 @@ export class DocumentManager {
       updatedAt: now,
       version: 1,
       remoteVersion: null,
-      dirty: false,
+      dirty: true,
     };
     this.manifest.documents[id] = meta;
     const targetFolder = this.manifest.folders[meta.folderId];
@@ -103,7 +114,17 @@ export class DocumentManager {
   }
 
   async loadDocumentData(id: string): Promise<DocumentData | null> {
-    return this.adapter.loadDocument(id);
+    const data = await this.adapter.loadDocument(id);
+    if (data) {
+      // Defensive sanitize: appState stored via JSON loses non-serializable
+      // fields like collaborators (Map → {}). Force a valid Map so the
+      // Excalidraw component does not crash on forEach.
+      data.appState = {
+        ...data.appState,
+        collaborators: new Map(),
+      };
+    }
+    return data;
   }
 
   async saveDocumentData(id: string, data: DocumentData): Promise<void> {
