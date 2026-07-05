@@ -300,7 +300,58 @@ export class SyncEngine {
         merged.folders[id] = f;
       }
     }
-    await this.local.saveManifest(merged);
-    await this.remote.saveManifest(merged);
+   await this.local.saveManifest(merged);
+   await this.remote.saveManifest(merged);
+ }
+
+  /**
+   * Force-sync: clear all local data, then pull everything from remote.
+   * This is a nuclear option — all unsynced local changes will be lost.
+   * Intended for manual use via dev console, not exposed in the UI.
+   */
+  async forceSync(): Promise<void> {
+    this.emit({ status: "syncing", documentId: "*" });
+    try {
+      // 1. Clear all local data
+      if (this.local.clearAll) {
+        await this.local.clearAll();
+      }
+
+      // 2. Pull remote manifest
+      const remoteManifest = await this.remote.getManifest();
+      if (!remoteManifest) {
+        this.emit({ status: "idle" });
+        return;
+      }
+
+      // 3. Save remote manifest locally
+      await this.local.saveManifest(remoteManifest);
+
+      // 4. Pull every document from remote
+      let count = 0;
+      for (const [docId, remoteMeta] of Object.entries(
+        remoteManifest.documents,
+      )) {
+        const remoteData = await this.remote.loadDocument(docId);
+        if (remoteData) {
+          await this.local.saveDocument(docId, remoteData, {
+            ...remoteMeta,
+            dirty: false,
+          });
+          count++;
+        }
+      }
+
+      console.log(
+        `[forceSync] Pulled ${count} documents from remote storage.`,
+      );
+      this.emit({ status: "idle" });
+    } catch (err) {
+      console.error("[forceSync] Failed:", err);
+      this.emit({
+        status: "error",
+        message: err instanceof Error ? err.message : "Force sync failed",
+      });
+    }
   }
 }

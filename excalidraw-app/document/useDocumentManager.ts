@@ -50,6 +50,13 @@ export function useDocumentManager() {
             const engine = new SyncEngine(localAdapter, remoteAdapter);
             syncEngineRef.current = engine;
             engine.onStateChange(setSyncState);
+            // Expose forceSync on window for manual dev-console invocation
+            (window as any).__excalidraw_forceSync = async () => {
+              await engine.forceSync();
+              await mgr.reloadManifest();
+              setManifest(mgr.getManifest());
+              window.location.reload();
+            };
             // Do a full sync on startup to pull remote changes
             engine.fullSync().then(async () => {
               await mgr.reloadManifest();

@@ -34,8 +34,14 @@ export interface StorageAdapter {
   getRemoteVersion(docId: string): Promise<string | null>;
 
   /**
-   * Test the connection to this storage backend.
-   * Throws on failure.
+  * Test the connection to this storage backend.
+  * Throws on failure.
+  */
+ testConnection(): Promise<void>;
+
+  /**
+   * Clear all local data (documents, metadata, manifest).
+   * For force-sync scenarios.
    */
-  testConnection(): Promise<void>;
+  clearAll?(): Promise<void>;
 }

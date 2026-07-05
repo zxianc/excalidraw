@@ -104,11 +104,18 @@ export class LocalAdapter implements StorageAdapter {
     return null;
   }
 
-  async testConnection(): Promise<void> {
-    await this.getDB();
+ async testConnection(): Promise<void> {
+   await this.getDB();
+ }
+
+  async clearAll(): Promise<void> {
+    const db = await this.getDB();
+    await tx(db, DOCS_STORE, "readwrite", (store) => store.clear());
+    await tx(db, META_STORE, "readwrite", (store) => store.clear());
+    await tx(db, MANIFEST_STORE, "readwrite", (store) => store.clear());
   }
 
-  async close(): Promise<void> {
+ async close(): Promise<void> {
     if (this.dbPromise) {
       try {
         const db = await this.dbPromise;
