@@ -465,6 +465,19 @@ const ExcalidrawWrapper = () => {
     }, VERSION_TIMEOUT);
   }, []);
 
+  // Push current document to remote when the page is about to close
+  // (closes the "last-document blind spot" of switch-triggered push)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (syncEngineRef.current) {
+        syncEngineRef.current.syncDocument(activeDocId || "").catch(() => {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [activeDocId, syncEngineRef]);
+
   const [, setShareDialogState] = useAtom(shareDialogStateAtom);
   const [collabAPI] = useAtom(collabAPIAtom);
   const [isCollaborating] = useAtomWithInitialValue(isCollaboratingAtom, () => {
