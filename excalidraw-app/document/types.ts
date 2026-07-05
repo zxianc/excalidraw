@@ -11,6 +11,10 @@ export interface DocumentMeta {
   version: number; // incremented on each save
   remoteVersion: string | null; // ETag or version from remote
   dirty: boolean; // has unsaved local changes
+  /** True when this document was auto-created by conflict resolution */
+  isConflictCopy?: boolean;
+  /** Timestamp when the conflict copy was created (banner + highlight fade after 24h) */
+  conflictCopyCreatedAt?: number;
 }
 
 /** A folder in the document tree */
