@@ -119,7 +119,8 @@ export class S3Adapter implements StorageAdapter {
     data: DocumentData,
     meta: DocumentMeta,
   ): Promise<void> {
-    await this.putObject(this.docPath(meta), JSON.stringify(data));
+    const etag = await this.putObject(this.docPath(meta), JSON.stringify(data));
+    console.log(`[S3Adapter.saveDocument] doc=${id} ETag=${etag}`);
   }
 
   async deleteDocument(id: string): Promise<void> {
@@ -155,6 +156,9 @@ export class S3Adapter implements StorageAdapter {
   }
 
   async saveManifest(manifest: Manifest): Promise<void> {
+    console.log(
+      `[S3Adapter.saveManifest] saving with ${Object.keys(manifest.documents).length} docs`,
+    );
     await this.putObject(
       DOC_CONSTANTS.MANIFEST_FILENAME,
       JSON.stringify(manifest),
@@ -162,27 +166,35 @@ export class S3Adapter implements StorageAdapter {
   }
 
   async getRemoteVersion(docId: string): Promise<string | null> {
+    console.log(`[S3Adapter.getRemoteVersion] docId=${docId}`);
     const manifest = await this.getManifest();
     if (!manifest || !manifest.documents[docId]) {
+      console.log(`[S3Adapter.getRemoteVersion] docId=${docId} → null (not in remote manifest)`);
       return null;
     }
     const meta = manifest.documents[docId];
+    const key = this.key(this.docPath(meta));
+    console.log(`[S3Adapter.getRemoteVersion] docId=${docId} headObject key=${key}`);
     return new Promise((resolve, reject) => {
       this.cos.headObject(
         {
           Bucket: this.config.bucket,
           Region: this.getRegion(),
-          Key: this.key(this.docPath(meta)),
+          Key: key,
         },
         (err, data) => {
           if (err) {
             if (err.statusCode === 404 || err.code === "NotFound") {
+              console.log(`[S3Adapter.getRemoteVersion] docId=${docId} → null (404)`);
               resolve(null);
             } else {
+              console.error(`[S3Adapter.getRemoteVersion] docId=${docId} error:`, err);
               reject(err);
             }
           } else {
-            resolve(data.headers?.["etag"] ?? null);
+            const etag = data.headers?.["etag"] ?? null;
+            console.log(`[S3Adapter.getRemoteVersion] docId=${docId} → ETag=${etag}`);
+            resolve(etag);
           }
         },
       );

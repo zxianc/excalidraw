@@ -42,10 +42,17 @@ export function useDocumentManager() {
       setManifest(mgr.getManifest());
       setActiveDocId(mgr.getActiveDocumentId());
       const configStr = localStorage.getItem(DOC_CONSTANTS.SYNC_CONFIG_KEY);
+      console.log("[useDocumentManager] configStr from localStorage:", configStr ? `found (${configStr.substring(0, 80)}...)` : "NOT FOUND");
       if (configStr) {
         try {
           const config: SyncConfig = JSON.parse(configStr);
           if (config.type === "s3") {
+            // Skip setup if critical S3 fields are missing
+            if (!config.bucket || !config.accessKey || !config.secretKey) {
+              console.warn("[useDocumentManager] S3 config incomplete, skipping sync engine. Clearing invalid config.");
+              localStorage.removeItem(DOC_CONSTANTS.SYNC_CONFIG_KEY);
+            } else {
+            console.log("[useDocumentManager] S3 config found, setting up sync engine");
             const remoteAdapter = new S3Adapter(config);
             const engine = new SyncEngine(localAdapter, remoteAdapter);
             syncEngineRef.current = engine;
@@ -57,14 +64,27 @@ export function useDocumentManager() {
               setManifest(mgr.getManifest());
               window.location.reload();
             };
+            // Expose clearAll to wipe all local data and reload
+            (window as any).__excalidraw_clearAll = async () => {
+              await localAdapter.clearAll();
+              window.location.reload();
+            };
             // Do a full sync on startup to pull remote changes
+            console.log("[useDocumentManager] running initial fullSync...");
             engine.fullSync().then(async () => {
               await mgr.reloadManifest();
-              setManifest(mgr.getManifest());
-            }).catch(() => {});
+              const refreshed = mgr.getManifest();
+              console.log(
+                `[useDocumentManager] initial fullSync done, manifest has ${Object.keys(refreshed.documents).length} docs`,
+              );
+              setManifest(refreshed);
+            }).catch((err) => {
+              console.error("[useDocumentManager] initial fullSync failed:", err);
+            });
+            } // end of valid config block
           }
-        } catch {
-          /* invalid config */
+        } catch (e) {
+          console.error("[useDocumentManager] config parse error:", e);
         }
       }
       setInitialized(true);
@@ -88,9 +108,8 @@ export function useDocumentManager() {
       const doc = manager.createDocumentSync(name, parentFolderId);
       refreshManifest();
       await manager.finalizeCreateDocument(doc);
-      // Sync manifest to remote for new doc
-      syncEngineRef.current?.syncManifestToRemote?.() ??
-        syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
+      // Push manifest to remote so new doc entry is discoverable
+      syncEngineRef.current?.syncManifestToRemote?.();
       return doc;
     },
     [manager, refreshManifest],
@@ -147,8 +166,11 @@ export function useDocumentManager() {
       if (!manager) {
         return null;
       }
+      console.log(`[switchDocument] switching to doc ${id}`);
       manager.setActiveDocument(id);
-      return manager.loadDocumentData(id);
+      const data = await manager.loadDocumentData(id);
+      console.log(`[switchDocument] loaded doc ${id}: elements=${data?.elements?.length ?? 0}`);
+      return data;
     },
     [manager],
   );
@@ -213,22 +235,33 @@ export function useDocumentManager() {
   // Expose sync engine for switch-triggered document push
   const syncToRemote = useCallback(
     async (docId: string): Promise<SyncResult> => {
+      console.log(`[useDocumentManager.syncToRemote] docId=${docId}`);
       if (!syncEngineRef.current) {
+        console.log(`[useDocumentManager.syncToRemote] no sync engine`);
         return "error";
       }
-      return syncEngineRef.current.syncDocument(docId);
+      const result = await syncEngineRef.current.syncDocument(docId);
+      console.log(`[useDocumentManager.syncToRemote] result=${result}`);
+      return result;
     },
     [],
   );
 
   // Full sync all dirty docs + merge manifests
   const syncAll = useCallback(() => {
+    console.log(`[useDocumentManager.syncAll] START`);
     syncEngineRef.current?.fullSync()?.then(async () => {
       if (manager) {
         await manager.reloadManifest();
-        setManifest(manager.getManifest());
+        const refreshed = manager.getManifest();
+        console.log(
+          `[useDocumentManager.syncAll] done, manifest has ${Object.keys(refreshed.documents).length} docs`,
+        );
+        setManifest(refreshed);
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error(`[useDocumentManager.syncAll] error:`, err);
+    });
   }, [manager, setManifest]);
 
   return {

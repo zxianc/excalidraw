@@ -15,7 +15,6 @@ const makeDocMeta = (overrides?: Partial<DocumentMeta>): DocumentMeta => ({
   folderId: "root",
   createdAt: Date.now(),
   updatedAt: Date.now(),
-  version: 1,
   remoteVersion: null,
   dirty: false,
   ...overrides,
@@ -28,7 +27,6 @@ const makeDocData = (): DocumentData => ({
 });
 
 const makeManifest = (): Manifest => ({
-  version: 1,
   folders: {
     root: {
       id: "root",
@@ -111,7 +109,6 @@ describe("LocalAdapter", () => {
     await adapter.saveManifest(manifest);
     const loaded = await adapter.getManifest();
     expect(loaded).not.toBeNull();
-    expect(loaded!.version).toBe(1);
     expect(loaded!.documents["doc-1"].name).toBe("Test Doc");
     await adapter.close();
   });

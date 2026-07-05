@@ -13,30 +13,41 @@ export class ConflictResolver {
     localMeta: DocumentMeta,
     currentRemoteVersion: string | null,
   ): boolean {
+    console.log(
+      `[hasConflict] doc=${localMeta.id} name="${localMeta.name}" dirty=${localMeta.dirty} localRemoteVersion=${localMeta.remoteVersion} currentRemoteVersion=${currentRemoteVersion}`,
+    );
+
     if (!localMeta.dirty) {
+      console.log(`[hasConflict] → false (not dirty)`);
       return false;
     }
     // If remote doesn't exist, no conflict — just push local
     if (currentRemoteVersion === null) {
+      console.log(`[hasConflict] → false (remote doesn't exist)`);
       return false;
     }
-    // If local has never synced, no conflict — just push local
+    // If local has never synced BUT remote has data, it IS a conflict
     if (localMeta.remoteVersion === null) {
-      return false;
+      console.log(`[hasConflict] → true (local never synced but remote exists — conflict!)`);
+      return true;
     }
-    return localMeta.remoteVersion !== currentRemoteVersion;
+
+    const conflict = localMeta.remoteVersion !== currentRemoteVersion;
+    console.log(
+      `[hasConflict] → ${conflict} (local="${localMeta.remoteVersion}" vs remote="${currentRemoteVersion}")`,
+    );
+    return conflict;
   }
 
   static buildConflictInfo(
     localMeta: DocumentMeta,
-    remoteVersion: string,
+    _remoteVersion: string,
     remoteUpdatedAt: number,
   ): ConflictInfo {
     return {
       documentId: localMeta.id,
       documentName: localMeta.name,
-      localVersion: localMeta.version,
-      remoteVersion,
+      remoteVersion: _remoteVersion,
       localUpdatedAt: localMeta.updatedAt,
       remoteUpdatedAt,
     };

@@ -34,37 +34,77 @@ export class SyncEngine {
   }
 
   async syncDocument(docId: string): Promise<SyncResult> {
+    console.log(`[syncDocument] START docId=${docId}`);
+
     const localDocs = await this.local.listDocuments();
     const meta = localDocs.find((d) => d.id === docId);
     if (!meta) {
+      console.log(`[syncDocument] → error: meta not found for ${docId}`);
       return "error";
     }
+    console.log(
+      `[syncDocument] meta: name="${meta.name}" dirty=${meta.dirty} remoteVersion=${meta.remoteVersion}`,
+    );
+
     if (!meta.dirty) {
+      console.log(`[syncDocument] → skipped (not dirty)`);
       return "skipped";
     }
 
     this.emit({ status: "syncing", documentId: docId });
 
     try {
-      const remoteVersion = await this.remote.getRemoteVersion(docId);
-      if (ConflictResolver.hasConflict(meta, remoteVersion)) {
-        // Auto-resolve: keep remote as original, save local as copy
+      let remoteVersion: string | null = null;
+      try {
+        remoteVersion = await this.remote.getRemoteVersion(docId);
+        console.log(`[syncDocument] remoteVersion from headObject: ${remoteVersion}`);
+      } catch (err: any) {
+        console.log(`[syncDocument] headObject failed: ${err.message}, downgrading to null`);
+        remoteVersion = null;
+      }
+
+      const hasConflict = ConflictResolver.hasConflict(meta, remoteVersion);
+
+      if (hasConflict) {
+        console.log(`[syncDocument] CONFLICT detected, auto-resolving keep-both`);
+
+        // --- Conflict detected: auto-resolve keep-both ---
         const localData = await this.local.loadDocument(docId);
         const remoteData = await this.remote.loadDocument(docId);
+        console.log(
+          `[syncDocument] conflict: localData=${!!localData} remoteData=${!!remoteData}`,
+        );
 
-        if (remoteData && localData) {
+        // Load current local manifest — we will rebuild it after resolution
+        const currentManifest = await this.local.getManifest();
+        console.log(
+          `[syncDocument] conflict: currentManifest docs count=${
+            currentManifest ? Object.keys(currentManifest.documents).length : 0
+          }`,
+        );
+
+        let copyId: string | null = null;
+        let copyName: string | null = null;
+
+        if (remoteData) {
           // 1. Overwrite local document with remote version
+          console.log(`[syncDocument] conflict: overwriting local ${docId} with remote`);
           await this.local.saveDocument(docId, remoteData, {
             ...meta,
             dirty: false,
             remoteVersion,
           });
+        }
 
-          // 2. Create local copy from the local version
-          const copyName = ConflictResolver.resolveKeepBoth(meta);
-          const copyId = `doc-${Date.now()}-${Math.random()
+        if (localData) {
+          // 2. Save local version as a conflict copy locally
+          copyName = ConflictResolver.resolveKeepBoth(meta);
+          copyId = `doc-${Date.now()}-${Math.random()
             .toString(36)
             .slice(2, 8)}`;
+          console.log(
+            `[syncDocument] conflict: creating copy id=${copyId} name="${copyName}"`,
+          );
           const copyMeta: DocumentMeta = {
             ...meta,
             id: copyId,
@@ -78,42 +118,103 @@ export class SyncEngine {
           };
           await this.local.saveDocument(copyId, localData, copyMeta);
 
-          // 3. Push copy to remote so other devices see it
-          await this.remote.saveDocument(copyId, localData, copyMeta);
-        } else if (localData) {
-          // Remote doesn't exist (deleted) — just push local
-          await this.remote.saveDocument(docId, localData, meta);
-          const freshETag = await this.remote.getRemoteVersion(docId);
-          await this.local.saveDocument(docId, localData, {
-            ...meta,
-            dirty: false,
-            remoteVersion: freshETag,
-          });
+          // 3. Push conflict copy to remote so other devices see it
+          const copyETag = await this.remote.saveDocument(copyId, localData, copyMeta);
+          // Track remoteVersion so the copy does not conflict on next switch
+          copyMeta.remoteVersion = copyETag;
+          await this.local.saveDocument(copyId, localData, copyMeta);
+          console.log(`[syncDocument] conflict: pushed copy to remote, ETag=${copyETag}`);
         }
 
+        // 4. Rebuild local manifest so reloadManifest() picks up the new state
+        if (currentManifest) {
+          if (remoteData) {
+            currentManifest.documents[docId] = {
+              ...meta,
+              dirty: false,
+              remoteVersion,
+            };
+          } else {
+            // Remote doc was deleted — push local instead
+            const freshETag = await this.remote.getRemoteVersion(docId);
+            if (localData) {
+              await this.remote.saveDocument(docId, localData, meta);
+              await this.local.saveDocument(docId, localData, {
+                ...meta,
+                dirty: false,
+                remoteVersion: freshETag,
+              });
+              currentManifest.documents[docId] = {
+                ...meta,
+                dirty: false,
+                remoteVersion: freshETag,
+              };
+            }
+          }
+
+          if (copyId && copyName) {
+            currentManifest.documents[copyId] = {
+              ...meta,
+              id: copyId,
+              name: copyName,
+              dirty: false,
+              remoteVersion: copyETag ?? null,
+              isConflictCopy: true,
+              conflictCopyCreatedAt: Date.now(),
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            // Add the copy to the root folder so it appears in the tree
+            const rootFolder = currentManifest.folders["root"];
+            if (rootFolder && !rootFolder.documents.includes(copyId)) {
+              rootFolder.documents.push(copyId);
+            }
+          }
+
+          await this.local.saveManifest(currentManifest);
+          console.log(`[syncDocument] conflict: saved rebuilt manifest to local`);
+        }
+
+        // 5. Push final manifest to remote
         await this.syncManifestToRemote();
+        console.log(`[syncDocument] conflict: pushed manifest to remote`);
+
         this.emit({ status: "idle" });
+        console.log(`[syncDocument] → conflict (resolved keep-both)`);
         return "conflict";
       }
 
       // No conflict — normal push
+      console.log(`[syncDocument] no conflict, normal push`);
       const data = await this.local.loadDocument(docId);
       if (!data) {
+        console.log(`[syncDocument] → error: no local data for ${docId}`);
         return "error";
       }
 
       await this.remote.saveDocument(docId, data, meta);
       const freshRemoteVersion = await this.remote.getRemoteVersion(docId);
+      console.log(`[syncDocument] pushed, freshRemoteVersion=${freshRemoteVersion}`);
       const updatedMeta: DocumentMeta = {
         ...meta,
         dirty: false,
         remoteVersion: freshRemoteVersion,
       };
       await this.local.saveDocument(docId, data, updatedMeta);
+      // ALSO update the local manifest, otherwise DocumentManager
+      // reads stale remoteVersion=null on next edit, triggering false conflicts.
+      const manifest = await this.local.getManifest();
+      if (manifest && manifest.documents[docId]) {
+        manifest.documents[docId] = { ...manifest.documents[docId], ...updatedMeta };
+        console.log(`[syncDocument] updated local manifest for ${docId} → remoteVersion=${freshRemoteVersion}`);
+        await this.local.saveManifest(manifest);
+      }
       await this.syncManifestToRemote();
       this.emit({ status: "idle" });
+      console.log(`[syncDocument] → synced`);
       return "synced";
     } catch (err) {
+      console.error(`[syncDocument] error:`, err);
       this.emit({
         status: "error",
         message: err instanceof Error ? err.message : "Sync failed",
@@ -197,54 +298,64 @@ export class SyncEngine {
    * Push is handled separately on document switch (syncDocument).
    */
   async fullSync(): Promise<void> {
+    console.log(`[fullSync] START`);
     this.emit({ status: "syncing", documentId: "*" });
     try {
       const remoteManifest = await this.remote.getManifest();
       if (!remoteManifest) {
-        // No remote data — nothing to pull
+        console.log(`[fullSync] no remote manifest, nothing to pull`);
         this.emit({ status: "idle" });
         return;
       }
 
-      const localDocs = await this.local.listDocuments();
-      const localManifest = await this.local.getManifest();
-      const localMap = new Map(
-        localDocs.map((d) => [d.id, d] as const),
+      console.log(
+        `[fullSync] remote manifest has ${Object.keys(remoteManifest.documents).length} docs`,
       );
 
-      // Pull docs where remote version is newer or doc is missing locally
+      // Unconditionally pull all remote documents
       for (const [docId, remoteMeta] of Object.entries(
         remoteManifest.documents,
       )) {
-        const localMeta = localMap.get(docId);
-        const needsPull =
-          !localMeta ||
-          (remoteMeta.version &&
-            (!localMeta.version || remoteMeta.version > localMeta.version));
-        if (needsPull) {
-          const remoteData = await this.remote.loadDocument(docId);
-          if (remoteData) {
-            await this.local.saveDocument(docId, remoteData, {
-              ...remoteMeta,
-              dirty: false,
-            });
-          }
+        console.log(
+          `[fullSync] pulling doc=${docId} name="${remoteMeta.name}" remoteVersion=${remoteMeta.remoteVersion}`,
+        );
+        const remoteData = await this.remote.loadDocument(docId);
+        // Re-check dirty status in real-time — it may have changed since
+        // fullSync started (user could have edited a previously-clean doc).
+        const freshMeta = (await this.local.listDocuments()).find(
+          (d) => d.id === docId,
+        );
+        const isDirty = freshMeta?.dirty ?? false;
+        console.log(
+          `[fullSync] doc=${docId} isDirty=${isDirty} freshMeta.remoteVersion=${freshMeta?.remoteVersion}`,
+        );
+        if (remoteData) {
+          await this.local.saveDocument(docId, remoteData, {
+            ...remoteMeta,
+            dirty: isDirty,
+            remoteVersion: isDirty
+              ? freshMeta!.remoteVersion
+              : remoteMeta.remoteVersion,
+          });
         }
       }
 
       // Merge manifests: remote is the source of truth, but preserve
       // local-only documents that aren't on remote yet
+      const localManifest = await this.local.getManifest();
       const merged: Manifest = {
-        version: Math.max(
-          (localManifest?.version ?? 0),
-          remoteManifest.version,
-        ) + 1,
         folders: { ...remoteManifest.folders },
         documents: { ...remoteManifest.documents },
       };
       if (localManifest) {
         for (const [id, m] of Object.entries(localManifest.documents)) {
           if (!merged.documents[id]) {
+            console.log(`[fullSync] merge: adding local-only doc ${id}`);
+            merged.documents[id] = m;
+          } else if (m.dirty) {
+            console.log(
+              `[fullSync] merge: preserving dirty doc ${id}, localRemoteVersion=${m.remoteVersion}`,
+            );
             merged.documents[id] = m;
           }
         }
@@ -255,9 +366,14 @@ export class SyncEngine {
         }
       }
       await this.local.saveManifest(merged);
+      console.log(
+        `[fullSync] merged manifest saved, ${Object.keys(merged.documents).length} docs`,
+      );
 
       this.emit({ status: "idle" });
+      console.log(`[fullSync] DONE`);
     } catch (err) {
+      console.error(`[fullSync] error:`, err);
       this.emit({
         status: "error",
         message: err instanceof Error ? err.message : "Full sync failed",
@@ -268,6 +384,9 @@ export class SyncEngine {
   public async syncManifestToRemote(): Promise<void> {
     const manifest = await this.local.getManifest();
     if (manifest) {
+      console.log(
+        `[syncManifestToRemote] pushing manifest with ${Object.keys(manifest.documents).length} docs`,
+      );
       await this.remote.saveManifest(manifest);
     }
   }
@@ -286,7 +405,6 @@ export class SyncEngine {
       return;
     }
     const merged: Manifest = {
-      version: Math.max(localManifest.version, remoteManifest.version) + 1,
       folders: { ...remoteManifest.folders },
       documents: { ...remoteManifest.documents },
     };
@@ -300,9 +418,9 @@ export class SyncEngine {
         merged.folders[id] = f;
       }
     }
-   await this.local.saveManifest(merged);
-   await this.remote.saveManifest(merged);
- }
+    await this.local.saveManifest(merged);
+    await this.remote.saveManifest(merged);
+  }
 
   /**
    * Force-sync: clear all local data, then pull everything from remote.

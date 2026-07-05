@@ -8,7 +8,6 @@ export interface DocumentMeta {
   folderId: string; // "root" for top-level
   createdAt: number;
   updatedAt: number;
-  version: number; // incremented on each save
   remoteVersion: string | null; // ETag or version from remote
   dirty: boolean; // has unsaved local changes
   /** True when this document was auto-created by conflict resolution */
@@ -26,9 +25,8 @@ export interface FolderNode {
   documents: string[]; // document IDs in this folder
 }
 
-/** Root manifest describing all documents and folders */
+  /** Root manifest describing all documents and folders */
 export interface Manifest {
-  version: number;
   folders: Record<string, FolderNode>;
   documents: Record<string, DocumentMeta>;
 }
@@ -58,7 +56,6 @@ export type ConflictChoice = "keep-local" | "use-remote" | "keep-both";
 export interface ConflictInfo {
   documentId: string;
   documentName: string;
-  localVersion: number;
   remoteVersion: string;
   localUpdatedAt: number;
   remoteUpdatedAt: number;

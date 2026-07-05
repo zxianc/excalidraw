@@ -7,7 +7,6 @@ const generateId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
 const createEmptyManifest = (): Manifest => ({
-  version: 0,
   folders: {
     root: {
       id: "root",
@@ -83,16 +82,14 @@ export class DocumentManager {
       folderId: parentFolderId || DOC_CONSTANTS.ROOT_FOLDER_ID,
       createdAt: now,
       updatedAt: now,
-      version: 1,
       remoteVersion: null,
-      dirty: true,
+      dirty: false,
     };
     this.manifest.documents[id] = meta;
     const targetFolder = this.manifest.folders[meta.folderId];
     if (targetFolder) {
       targetFolder.documents.push(id);
     }
-    this.manifest.version += 1;
     // persist in background
     this.persistManifest();
     this.adapter.saveDocument(
@@ -133,12 +130,13 @@ export class DocumentManager {
       throw new Error(`Document ${id} not found`);
     }
     meta.updatedAt = Date.now();
-    meta.version += 1;
     meta.dirty = true;
     this.manifest.documents[id] = meta;
-    this.manifest.version += 1;
     await this.adapter.saveDocument(id, data, meta);
-    await this.persistManifest();
+    // DO NOT persist manifest here — only META_STORE matters for
+    // syncDocument reads. Writing the full manifest on every save
+    // races with syncDocument's manifest update and can overwrite
+    // the synced remoteVersion with stale null values.
   }
 
   async markSynced(id: string, remoteVersion: string): Promise<void> {
@@ -162,7 +160,6 @@ export class DocumentManager {
       folder.documents = folder.documents.filter((dId) => dId !== id);
     }
     delete this.manifest.documents[id];
-    this.manifest.version += 1;
     await this.adapter.deleteDocument(id);
     await this.persistManifest();
     if (this.activeDocId === id) {
@@ -179,7 +176,6 @@ export class DocumentManager {
     meta.name = newName;
     meta.updatedAt = Date.now();
     this.manifest.documents[id] = meta;
-    this.manifest.version += 1;
     await this.persistManifest();
   }
 
@@ -217,7 +213,6 @@ export class DocumentManager {
     meta.folderId = targetFolderId;
     meta.updatedAt = Date.now();
     this.manifest.documents[docId] = meta;
-    this.manifest.version += 1;
     await this.persistManifest();
   }
 
@@ -236,7 +231,6 @@ export class DocumentManager {
     if (parent && !parent.children.includes(id)) {
       parent.children.push(id);
     }
-    this.manifest.version += 1;
     // persist in background
     this.persistManifest();
     return folder;
@@ -259,7 +253,6 @@ export class DocumentManager {
     }
     folder.name = newName;
     this.manifest.folders[id] = folder;
-    this.manifest.version += 1;
     await this.persistManifest();
   }
 
@@ -281,7 +274,6 @@ export class DocumentManager {
       }
     }
     delete this.manifest.folders[id];
-    this.manifest.version += 1;
     await this.persistManifest();
   }
 

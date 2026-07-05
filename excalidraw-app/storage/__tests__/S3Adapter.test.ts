@@ -38,7 +38,6 @@ const makeDocMeta = (): DocumentMeta => ({
   folderId: "root",
   createdAt: 1000,
   updatedAt: 2000,
-  version: 1,
   remoteVersion: null,
   dirty: false,
 });
@@ -50,7 +49,6 @@ const makeDocData = (): DocumentData => ({
 });
 
 const makeManifest = (): Manifest => ({
-  version: 1,
   folders: {
     root: {
       id: "root",

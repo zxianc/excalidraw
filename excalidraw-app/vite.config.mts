@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react";
 import svgrPlugin from "vite-plugin-svgr";
 import { ViteEjsPlugin } from "vite-plugin-ejs";
 import { VitePWA } from "vite-plugin-pwa";
-import checker from "vite-plugin-checker";
 import { createHtmlPlugin } from "vite-plugin-html";
 import Sitemap from "vite-plugin-sitemap";
 import { woff2BrowserPlugin } from "../scripts/woff2/woff2-vite-plugins";
@@ -141,19 +140,6 @@ export default defineConfig(({ mode }) => {
       }),
       woff2BrowserPlugin(),
       react(),
-      checker({
-        typescript: true,
-        eslint:
-          envVars.VITE_APP_ENABLE_ESLINT === "false"
-            ? undefined
-            : { lintCommand: 'eslint "./**/*.{js,ts,tsx}"' },
-        overlay: {
-          initialIsOpen: envVars.VITE_APP_COLLAPSE_OVERLAY === "false",
-          badgeStyle: "margin-bottom: 4rem; margin-left: 1rem",
-        },
-      }),
-      svgrPlugin(),
-      ViteEjsPlugin(),
       VitePWA({
         registerType: "autoUpdate",
         devOptions: {

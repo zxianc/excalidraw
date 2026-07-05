@@ -48,7 +48,6 @@ const makeMeta = (overrides?: Partial<DocumentMeta>): DocumentMeta => ({
   folderId: "root",
   createdAt: 1000,
   updatedAt: 2000,
-  version: 1,
   remoteVersion: null,
   dirty: false,
   ...overrides,
@@ -74,7 +73,6 @@ describe("SyncEngine", () => {
     const meta = makeMeta({ dirty: true });
     await local.saveDocument("doc-1", makeData(), meta);
     const manifest: Manifest = {
-      version: 1,
       folders: {
         root: {
           id: "root",

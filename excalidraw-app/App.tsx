@@ -911,12 +911,18 @@ const ExcalidrawWrapper = () => {
       // Push current doc to remote before switching away
       const currentId = activeDocId; // narrowed by enclosing if-guard
       const result = currentId ? await syncToRemote(currentId) : 'error';
+
+      // Refresh in-memory manifest after sync, so DocumentManager
+      // state matches IDB (syncDocument writes to IDB directly).
+      if (getManager()) {
+        await getManager()!.reloadManifest();
+      }
+
       if (result === "conflict") {
         // Conflict was auto-resolved with keep-both.
         // Show banner and refresh manifest so the copy appears in the tree.
         if (getManager()) {
           const mgr = getManager()!;
-          await mgr.reloadManifest();
           setManifest(mgr.getManifest());
           const meta = currentId ? mgr.getManifest().documents[currentId] : undefined;
           if (meta) {
@@ -1488,8 +1494,8 @@ const ExcalidrawWrapper = () => {
           <SettingsDialog
             isOpen={settingsOpen}
             onClose={() => setSettingsOpen(false)}
-            onConfigSaved={(config: SyncConfig) => {}}
-            onConfigCleared={() => {}}
+            onConfigSaved={() => window.location.reload()}
+            onConfigCleared={() => window.location.reload()}
           />
         </Excalidraw>
       </div>

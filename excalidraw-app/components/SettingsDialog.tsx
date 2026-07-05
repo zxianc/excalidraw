@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ConfigCrypto } from "../sync/ConfigCrypto";
 import { S3Adapter } from "../storage/S3Adapter";
 import type { SyncConfig } from "../document/types";
@@ -28,6 +28,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
     region: "ap-guangzhou",
     pathPrefix: "",
   });
+  const formRef = useRef(form);
+  formRef.current = form;
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [exportStr, setExportStr] = useState("");
@@ -52,18 +54,20 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({
       } catch {}
     }
   }, []);
-  if (isOpen && !form.endpoint && !form.bucket) {
-    loadExisting();
-  }
+  useEffect(() => {
+    if (isOpen) {
+      loadExisting();
+    }
+  }, [isOpen]);
 
   const buildConfig = (): SyncConfig => ({
     type: "s3",
-    endpoint: form.endpoint,
-    bucket: form.bucket,
-    accessKey: form.accessKey,
-    secretKey: form.secretKey,
-    region: form.region || undefined,
-    pathPrefix: form.pathPrefix || undefined,
+    endpoint: formRef.current.endpoint,
+    bucket: formRef.current.bucket,
+    accessKey: formRef.current.accessKey,
+    secretKey: formRef.current.secretKey,
+    region: formRef.current.region || undefined,
+    pathPrefix: formRef.current.pathPrefix || undefined,
   });
   const handleTest = async () => {
     setTesting(true);

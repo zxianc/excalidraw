@@ -10,7 +10,6 @@ const makeMeta = (overrides?: Partial<DocumentMeta>): DocumentMeta => ({
   folderId: "root",
   createdAt: 1000,
   updatedAt: 2000,
-  version: 3,
   remoteVersion: '"etag-abc"',
   dirty: true,
   ...overrides,
@@ -45,7 +44,6 @@ describe("ConflictResolver", () => {
       const info = ConflictResolver.buildConflictInfo(meta, '"etag-new"', 3000);
       expect(info.documentId).toBe("doc-1");
       expect(info.documentName).toBe("Test Doc");
-      expect(info.localVersion).toBe(3);
       expect(info.remoteVersion).toBe('"etag-new"');
       expect(info.localUpdatedAt).toBe(2000);
       expect(info.remoteUpdatedAt).toBe(3000);

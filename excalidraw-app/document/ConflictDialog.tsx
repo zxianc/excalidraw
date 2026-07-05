@@ -51,7 +51,7 @@ export const ConflictDialog: React.FC<ConflictDialogProps> = ({
                 Local Version
               </div>
               <div className="conflict-dialog__version-info">
-                v{conflict.localVersion} — {formatDate(conflict.localUpdatedAt)}
+                {formatDate(conflict.localUpdatedAt)}
               </div>
             </div>
             <div className="conflict-dialog__version-vs">vs</div>
