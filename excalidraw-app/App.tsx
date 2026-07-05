@@ -909,7 +909,8 @@ const ExcalidrawWrapper = () => {
         }
       }
       // Push current doc to remote before switching away
-      const result = await syncToRemote(activeDocId);
+      const currentId = activeDocId; // narrowed by enclosing if-guard
+      const result = currentId ? await syncToRemote(currentId) : 'error';
       if (result === "conflict") {
         // Conflict was auto-resolved with keep-both.
         // Show banner and refresh manifest so the copy appears in the tree.
@@ -917,7 +918,7 @@ const ExcalidrawWrapper = () => {
           const mgr = getManager()!;
           await mgr.reloadManifest();
           setManifest(mgr.getManifest());
-          const meta = mgr.getManifest().documents[activeDocId];
+          const meta = currentId ? mgr.getManifest().documents[currentId] : undefined;
           if (meta) {
             setConflictBannerInfo({
               documentName: meta.name,
