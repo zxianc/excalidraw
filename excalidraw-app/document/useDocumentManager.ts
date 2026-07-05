@@ -4,6 +4,7 @@ import { atom, useAtom } from "../app-jotai";
 
 import { LocalAdapter } from "../storage/LocalAdapter";
 import { SyncEngine } from "../sync/SyncEngine";
+import type { SyncResult } from "../sync/SyncEngine";
 import { S3Adapter } from "../storage/S3Adapter";
 
 import { DocumentManager } from "./DocumentManager";
@@ -11,11 +12,13 @@ import { DocumentManager } from "./DocumentManager";
 import { DOC_CONSTANTS } from "./constants";
 
 import type { Manifest, SyncConfig, SyncState, DocumentData } from "./types";
+import type { ConflictBannerInfo } from "./ConflictBanner";
 
 export const manifestAtom = atom<Manifest | null>(null);
 export const activeDocIdAtom = atom<string | null>(null);
 export const syncStateAtom = atom<SyncState>({ status: "idle" });
 export const sidebarOpenAtom = atom<boolean>(true);
+export const conflictBannerAtom = atom<ConflictBannerInfo | null>(null);
 
 export function useDocumentManager() {
   const [manager, setManager] = useState<DocumentManager | null>(null);
@@ -48,7 +51,10 @@ export function useDocumentManager() {
             syncEngineRef.current = engine;
             engine.onStateChange(setSyncState);
             // Do a full sync on startup to pull remote changes
-            engine.fullSync().catch(() => {});
+            engine.fullSync().then(async () => {
+              await mgr.reloadManifest();
+              setManifest(mgr.getManifest());
+            }).catch(() => {});
           }
         } catch {
           /* invalid config */
@@ -77,7 +83,7 @@ export function useDocumentManager() {
       await manager.finalizeCreateDocument(doc);
       // Sync manifest to remote for new doc
       syncEngineRef.current?.syncManifestToRemote?.() ??
-        syncEngineRef.current?.fullSync()?.catch(() => {});
+        syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
       return doc;
     },
     [manager, refreshManifest],
@@ -92,7 +98,7 @@ export function useDocumentManager() {
       if (activeDocId === id) {
         setActiveDocId(null);
       }
-      syncEngineRef.current?.fullSync()?.catch(() => {});
+      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
     },
     [manager, refreshManifest, activeDocId, setActiveDocId],
   );
@@ -114,7 +120,7 @@ export function useDocumentManager() {
       }
       const doc = await manager.duplicateDocument(id);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.catch(() => {});
+      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
       return doc;
     },
     [manager, refreshManifest],
@@ -135,19 +141,29 @@ export function useDocumentManager() {
         return null;
       }
       manager.setActiveDocument(id);
-      setActiveDocId(id);
       return manager.loadDocumentData(id);
     },
-    [manager, setActiveDocId],
+    [manager],
   );
+
+  // commitSwitch — call AFTER updateScene, batches manifest + activeDocId into one render
+  const commitSwitch = useCallback(
+    (id: string, mgr: DocumentManager) => {
+      setActiveDocId(id);
+      setManifest(mgr.getManifest());
+    },
+    [setActiveDocId, setManifest],
+  );
+
   const saveDocumentData = useCallback(
-    async (id: string, data: DocumentData) => {
+    async (id: string, data: DocumentData, opts?: { skipRefresh?: boolean }) => {
       if (!manager) {
         return;
       }
       await manager.saveDocumentData(id, data);
-      refreshManifest();
-      // Remote sync is triggered separately via syncToRemote (30s idle debounce or explicit)
+      if (!opts?.skipRefresh) {
+        refreshManifest();
+      }
     },
     [manager, refreshManifest],
   );
@@ -159,7 +175,7 @@ export function useDocumentManager() {
       const folder = manager.createFolderSync(name, parentId);
       refreshManifest();
       await manager.finalizeCreateFolder(folder);
-      syncEngineRef.current?.fullSync()?.catch(() => {});
+      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
       return folder;
     },
     [manager, refreshManifest],
@@ -171,7 +187,7 @@ export function useDocumentManager() {
       }
       await manager.renameFolder(id, name);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.catch(() => {});
+      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
     },
     [manager, refreshManifest],
   );
@@ -182,20 +198,31 @@ export function useDocumentManager() {
       }
       await manager.deleteFolder(id);
       refreshManifest();
-      syncEngineRef.current?.fullSync()?.catch(() => {});
+      syncEngineRef.current?.fullSync()?.then(() => { refreshManifest(); }).catch(() => {});
     },
     [manager, refreshManifest],
   );
 
-  // Expose sync engine for debounced auto-save triggers from App.tsx
-  const syncToRemote = useCallback((docId: string) => {
-    syncEngineRef.current?.syncDocument(docId)?.catch(() => {});
-  }, []);
+  // Expose sync engine for switch-triggered document push
+  const syncToRemote = useCallback(
+    async (docId: string): Promise<SyncResult> => {
+      if (!syncEngineRef.current) {
+        return "error";
+      }
+      return syncEngineRef.current.syncDocument(docId);
+    },
+    [],
+  );
 
   // Full sync all dirty docs + merge manifests
   const syncAll = useCallback(() => {
-    syncEngineRef.current?.fullSync()?.catch(() => {});
-  }, []);
+    syncEngineRef.current?.fullSync()?.then(async () => {
+      if (manager) {
+        await manager.reloadManifest();
+        setManifest(manager.getManifest());
+      }
+    }).catch(() => {});
+  }, [manager, setManifest]);
 
   return {
     initialized,
@@ -211,11 +238,14 @@ export function useDocumentManager() {
     moveDocument,
     switchDocument,
     saveDocumentData,
+    commitSwitch,
     createFolder,
     renameFolder,
     deleteFolder,
     syncToRemote,
     syncAll,
+    syncEngineRef,
+    setManifest,
     getManager: () => manager,
   };
 }

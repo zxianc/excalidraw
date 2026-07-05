@@ -3,6 +3,8 @@ import clsx from "clsx";
 
 import { FolderTree } from "./FolderTree";
 import { SyncStatus } from "./SyncStatus";
+import { ConflictBanner } from "./ConflictBanner";
+import type { ConflictBannerInfo } from "./ConflictBanner";
 
 import "./DocumentSidebar.scss";
 
@@ -24,6 +26,8 @@ interface DocumentSidebarProps {
   onRenameFolder: (folderId: string, name: string) => void;
   onOpenSettings: () => void;
   onSyncAll: () => void;
+  conflictBannerInfo: ConflictBannerInfo | null;
+  onDismissConflictBanner: () => void;
 }
 interface ContextMenuState {
   x: number;
@@ -48,6 +52,8 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
   onRenameFolder,
   onOpenSettings,
   onSyncAll,
+  conflictBannerInfo,
+  onDismissConflictBanner,
 }) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
@@ -222,6 +228,10 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
               editingItem={editingItem}
               onRenameCommit={handleRenameCommit}
               onRenameCancel={handleRenameCancel}
+            />
+            <ConflictBanner
+              info={conflictBannerInfo}
+              onDismiss={onDismissConflictBanner}
             />
             <div className="doc-sidebar__footer">
               <SyncStatus state={syncState} />

@@ -151,7 +151,7 @@ import { DocumentSidebar } from "./document/DocumentSidebar";
 import { ConflictDialog } from "./document/ConflictDialog";
 import { SettingsDialog } from "./components/SettingsDialog";
 
-import { useDocumentManager } from "./document/useDocumentManager";
+import { useDocumentManager, conflictBannerAtom } from "./document/useDocumentManager";
 import { DOC_CONSTANTS } from "./document/constants";
 
 import type {
@@ -423,8 +423,12 @@ const ExcalidrawWrapper = () => {
     renameFolder,
     deleteFolder,
     saveDocumentData,
-    syncToRemote,
+    commitSwitch,
     syncAll,
+    syncToRemote,
+    syncEngineRef,
+    setManifest,
+    getManager,
   } = useDocumentManager();
   // Debounced save to IndexedDB document store
   const docSaveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -451,6 +455,7 @@ const ExcalidrawWrapper = () => {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
+  const [conflictBannerInfo, setConflictBannerInfo] = useAtom(conflictBannerAtom);
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
@@ -871,20 +876,50 @@ const ExcalidrawWrapper = () => {
     async (docId: string) => {
       // Save current document data before switching
       if (activeDocId && excalidrawAPI) {
+        // Cancel any pending debounced auto-save for the old doc
+        const pendingTimer = docSaveTimers.current.get(activeDocId);
+        if (pendingTimer) {
+          clearTimeout(pendingTimer);
+          docSaveTimers.current.delete(activeDocId);
+        }
         try {
           const elements = excalidrawAPI.getSceneElementsIncludingDeleted();
           const appState = excalidrawAPI.getAppState();
           const files = excalidrawAPI.getFiles();
-          await saveDocumentData(activeDocId, {
-            elements: elements as any,
-            appState: appState as any,
-            files: files as any,
-          });
-          // Force sync current doc to remote before switching away
-          syncToRemote(activeDocId);
+          await saveDocumentData(
+            activeDocId,
+            { elements: elements as any, appState: appState as any, files: files as any },
+            { skipRefresh: true },
+          );
         } catch {
           // silently ignore save errors during switch
         }
+      }
+      // Push current doc to remote before switching away
+      const result = await syncToRemote(activeDocId);
+      if (result === "conflict") {
+        // Conflict was auto-resolved with keep-both.
+        // Show banner and refresh manifest so the copy appears in the tree.
+        if (getManager()) {
+          const mgr = getManager()!;
+          await mgr.reloadManifest();
+          setManifest(mgr.getManifest());
+          const meta = mgr.getManifest().documents[activeDocId];
+          if (meta) {
+            setConflictBannerInfo({
+              documentName: meta.name,
+              copyName: meta.name.includes(" - Copy")
+                ? meta.name
+                : `${meta.name} - Copy`,
+            });
+          }
+        }
+      }
+
+      // Commit React state FIRST so the render happens before we fill the canvas.
+      const mgr = getManager();
+      if (mgr) {
+        commitSwitch(docId, mgr);
       }
       const data = await switchDocument(docId);
       if (data && excalidrawAPI) {
@@ -899,10 +934,14 @@ const ExcalidrawWrapper = () => {
     },
     [
       switchDocument,
+      commitSwitch,
       excalidrawAPI,
       activeDocId,
       saveDocumentData,
       syncToRemote,
+      getManager,
+      setConflictBannerInfo,
+      setManifest,
     ],
   );
   const handleRenameDocument = useCallback(
@@ -1061,6 +1100,8 @@ const ExcalidrawWrapper = () => {
           onRenameFolder={handleRenameFolder}
           onOpenSettings={() => setSettingsOpen(true)}
           onSyncAll={syncAll}
+          conflictBannerInfo={conflictBannerInfo}
+          onDismissConflictBanner={() => setConflictBannerInfo(null)}
         />
       )}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
