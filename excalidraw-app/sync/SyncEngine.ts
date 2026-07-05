@@ -48,23 +48,61 @@ export class SyncEngine {
     try {
       const remoteVersion = await this.remote.getRemoteVersion(docId);
       if (ConflictResolver.hasConflict(meta, remoteVersion)) {
-        const conflictInfo = ConflictResolver.buildConflictInfo(
-          meta,
-          remoteVersion || "unknown",
-          Date.now(),
-        );
-        this.pendingConflicts.set(docId, conflictInfo);
-        this.emit({ status: "conflict", conflict: conflictInfo });
+        // Auto-resolve: keep remote as original, save local as copy
+        const localData = await this.local.loadDocument(docId);
+        const remoteData = await this.remote.loadDocument(docId);
+
+        if (remoteData && localData) {
+          // 1. Overwrite local document with remote version
+          await this.local.saveDocument(docId, remoteData, {
+            ...meta,
+            dirty: false,
+            remoteVersion,
+          });
+
+          // 2. Create local copy from the local version
+          const copyName = ConflictResolver.resolveKeepBoth(meta);
+          const copyId = `doc-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+          const copyMeta: DocumentMeta = {
+            ...meta,
+            id: copyId,
+            name: copyName,
+            dirty: false,
+            remoteVersion: null,
+            isConflictCopy: true,
+            conflictCopyCreatedAt: Date.now(),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          await this.local.saveDocument(copyId, localData, copyMeta);
+
+          // 3. Push copy to remote so other devices see it
+          await this.remote.saveDocument(copyId, localData, copyMeta);
+        } else if (localData) {
+          // Remote doesn't exist (deleted) — just push local
+          await this.remote.saveDocument(docId, localData, meta);
+          const freshETag = await this.remote.getRemoteVersion(docId);
+          await this.local.saveDocument(docId, localData, {
+            ...meta,
+            dirty: false,
+            remoteVersion: freshETag,
+          });
+        }
+
+        await this.syncManifestToRemote();
+        this.emit({ status: "idle" });
         return "conflict";
       }
 
+      // No conflict — normal push
       const data = await this.local.loadDocument(docId);
       if (!data) {
         return "error";
       }
 
       await this.remote.saveDocument(docId, data, meta);
-      // Fetch the ETag *after* the upload so local tracking is correct
       const freshRemoteVersion = await this.remote.getRemoteVersion(docId);
       const updatedMeta: DocumentMeta = {
         ...meta,
