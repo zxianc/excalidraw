@@ -60,10 +60,10 @@ const Footer = ({
         })}
       >
         <div style={{ position: "relative" }}>
-          {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
+          {/* {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
           <HelpButton
             onClick={() => actionManager.executeAction(actionShortcuts)}
-          />
+          /> */}
         </div>
       </div>
       <ExitZenModeButton

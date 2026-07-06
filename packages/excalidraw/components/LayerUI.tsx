@@ -117,11 +117,11 @@ const DefaultMainMenu: React.FC<{
       <MainMenu.DefaultItems.SearchMenu />
       <MainMenu.DefaultItems.Help />
       <MainMenu.DefaultItems.ClearCanvas />
-      <MainMenu.Separator />
+      {/* <MainMenu.Separator />
       <MainMenu.Group title="Excalidraw links">
         <MainMenu.DefaultItems.Socials />
       </MainMenu.Group>
-      <MainMenu.Separator />
+      <MainMenu.Separator /> */}
       <MainMenu.DefaultItems.ToggleTheme allowSystemTheme={false} />
       <MainMenu.DefaultItems.ChangeCanvasBackground />
     </MainMenu>

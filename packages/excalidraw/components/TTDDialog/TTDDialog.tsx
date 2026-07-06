@@ -97,21 +97,21 @@ const TTDDialogBase = withInternalFallback(
             <p className="dialog-mermaid-title">{t("mermaid.title")}</p>
           ) : (
             <TTDDialogTabTriggers>
-              <TTDDialogTabTrigger tab="text-to-diagram">
+              {/* <TTDDialogTabTrigger tab="text-to-diagram">
                 <div className="ttd-dialog-tab-trigger__content">
                   {t("labels.textToDiagram")}
                   <div className="ttd-dialog-tab-trigger__badge">
                     {t("chat.aiBeta")}
                   </div>
                 </div>
-              </TTDDialogTabTrigger>
+              </TTDDialogTabTrigger> */}
               <TTDDialogTabTrigger tab="mermaid">
                 {t("mermaid.label")}
               </TTDDialogTabTrigger>
             </TTDDialogTabTriggers>
           )}
 
-          {!("__fallback" in rest) && (
+          {/* {!("__fallback" in rest) && (
             <TTDDialogTab className="ttd-dialog-content" tab="text-to-diagram">
               <TextToDiagram
                 mermaidToExcalidrawLib={mermaidToExcalidrawLib}
@@ -121,7 +121,7 @@ const TTDDialogBase = withInternalFallback(
                 persistenceAdapter={rest.persistenceAdapter}
               />
             </TTDDialogTab>
-          )}
+          )} */}
           <TTDDialogTab className="ttd-dialog-content" tab="mermaid">
             <MermaidToExcalidraw
               mermaidToExcalidrawLib={mermaidToExcalidrawLib}

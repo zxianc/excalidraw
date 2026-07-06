@@ -13,6 +13,7 @@ export const AppSidebar = () => {
 
   return (
     <DefaultSidebar>
+      {/* Comments and Presentation tabs disabled
       <DefaultSidebar.TabTriggers>
         <Sidebar.TabTrigger
           tab="comments"
@@ -74,6 +75,7 @@ export const AppSidebar = () => {
           </LinkButton>
         </div>
       </Sidebar.Tab>
+      */}
     </DefaultSidebar>
   );
 };

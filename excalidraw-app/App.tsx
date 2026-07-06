@@ -1207,13 +1207,13 @@ const ExcalidrawWrapper = () => {
                 {collabError.message && (
                   <CollabError collabError={collabError} />
                 )}
-                <LiveCollaborationTrigger
+                {/* <LiveCollaborationTrigger
                   isCollaborating={isCollaborating}
                   onSelect={() =>
                     setShareDialogState({ isOpen: true, type: "share" })
                   }
                   editorInterface={editorInterface}
-                />
+                /> */}
               </div>
             );
           }}
@@ -1284,7 +1284,7 @@ const ExcalidrawWrapper = () => {
             <Collab excalidrawAPI={excalidrawAPI} />
           )}
 
-          <ShareDialog
+          {/* <ShareDialog
             collabAPI={collabAPI}
             onExportToBackend={async () => {
               if (excalidrawAPI) {
@@ -1299,7 +1299,7 @@ const ExcalidrawWrapper = () => {
                 }
               }
             }}
-          />
+          /> */}
 
           <AppSidebar />
 
@@ -1311,7 +1311,7 @@ const ExcalidrawWrapper = () => {
 
           <CommandPalette
             customCommandPaletteItems={[
-              {
+              /* {
                 label: t("labels.liveCollaboration"),
                 category: DEFAULT_CATEGORIES.app,
                 keywords: [
@@ -1329,8 +1329,8 @@ const ExcalidrawWrapper = () => {
                     type: "collaborationOnly",
                   });
                 },
-              },
-              {
+              }, */
+              /* {
                 label: t("roomDialog.button_stopSession"),
                 category: DEFAULT_CATEGORIES.app,
                 predicate: () => !!collabAPI?.isCollaborating(),
@@ -1351,7 +1351,7 @@ const ExcalidrawWrapper = () => {
                     }
                   }
                 },
-              },
+              }, */
               {
                 label: t("labels.share"),
                 category: DEFAULT_CATEGORIES.app,

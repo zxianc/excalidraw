@@ -20,7 +20,7 @@ import type { JSX } from "react";
 
 const Header = () => (
   <div className="HelpDialog__header">
-    <a
+    {/* <a
       className="HelpDialog__btn"
       href="https://docs.excalidraw.com"
       target="_blank"
@@ -55,7 +55,7 @@ const Header = () => (
     >
       <div className="HelpDialog__link-icon">{youtubeIcon}</div>
       YouTube
-    </a>
+    </a> */}
   </div>
 );
 

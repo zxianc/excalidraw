@@ -1286,10 +1286,10 @@ export const ShapesSwitcher = ({
               {t("toolBar.lasso")}
             </DropdownMenu.Item>
           )}
-          <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
+          {/* <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
             Generate
           </div>
-          {app.props.aiEnabled !== false && <TTDDialogTriggerTunnel.Out />}
+          {app.props.aiEnabled !== false && <TTDDialogTriggerTunnel.Out />} */}
           <DropdownMenu.Item
             onSelect={() => app.setOpenDialog({ name: "ttd", tab: "mermaid" })}
             icon={mermaidLogoIcon}
@@ -1297,7 +1297,7 @@ export const ShapesSwitcher = ({
           >
             {t("toolBar.mermaidToExcalidraw")}
           </DropdownMenu.Item>
-          {app.props.aiEnabled !== false && app.plugins.diagramToCode && (
+          {/* {app.props.aiEnabled !== false && app.plugins.diagramToCode && (
             <DropdownMenu.Item
               onSelect={() => app.onMagicframeToolSelect()}
               icon={MagicIcon}
@@ -1306,7 +1306,7 @@ export const ShapesSwitcher = ({
             >
               {t("toolBar.magicframe")}
             </DropdownMenu.Item>
-          )}
+          )} */}
         </DropdownMenu.Content>
       </DropdownMenu>
     </>
