@@ -90,9 +90,9 @@ export default defineConfig(({ mode }) => {
         },
       ],
     },
-    build: {
-      outDir: "build",
-      rollupOptions: {
+  build: {
+    outDir: "build",
+    rollupOptions: {
         output: {
           assetFileNames(chunkInfo) {
             if (chunkInfo?.name?.endsWith(".woff2")) {
@@ -129,9 +129,28 @@ export default defineConfig(({ mode }) => {
       sourcemap: true,
       // don't auto-inline small assets (i.e. fonts hosted on CDN)
       assetsInlineLimit: 0,
+  },
+  plugins: [
+    // Drop console.log/debug/info and debugger in production builds only.
+    // Dev mode is unaffected — all console output works as normal.
+    {
+      name: "drop-console-in-build",
+      apply: "build",
+      enforce: "post",
+      transform(code) {
+        return code.replace(
+          /console\.(log|debug|info)\s*\(/g,
+          "void 0 && console.$1(",
+        );
+      },
+      renderChunk(code) {
+        return code.replace(
+          /console\.(log|debug|info)\s*\(/g,
+          "void 0 && console.$1(",
+        );
+      },
     },
-    plugins: [
-      Sitemap({
+    Sitemap({
         hostname: "https://excalidraw.com",
         outDir: "build",
         changefreq: "monthly",
