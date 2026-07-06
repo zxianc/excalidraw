@@ -105,10 +105,7 @@
   }
 
   &--conflict-copy {
-    background: rgba(245, 158, 11, 0.08);
-    &:hover {
-      background: rgba(245, 158, 11, 0.14);
-    }
+    // visual distinction handled by yellow circle indicator
   }
 }
 
@@ -127,14 +124,13 @@
   white-space: nowrap;
 }
 
-.folder-tree__doc-dirty {
+.folder-tree__doc-conflict {
   flex-shrink: 0;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--color-primary, #6965db);
-  opacity: 0.7;
-  line-height: 1;
+  background: #f59e0b;
+  opacity: 0.85;
 }
 
 // ---- Inline rename input ----

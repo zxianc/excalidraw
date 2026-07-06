@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./ConflictBanner.scss";
 
 export interface ConflictBannerInfo {
@@ -16,19 +16,21 @@ export const ConflictBanner: React.FC<ConflictBannerProps> = ({
   onDismiss,
 }) => {
   const [visible, setVisible] = useState(false);
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
 
   useEffect(() => {
     if (info) {
       setVisible(true);
       const timer = setTimeout(() => {
         setVisible(false);
-        setTimeout(onDismiss, 300);
+        setTimeout(() => onDismissRef.current(), 300);
       }, 6000);
       return () => clearTimeout(timer);
     } else {
       setVisible(false);
     }
-  }, [info, onDismiss]);
+  }, [info]);
 
   if (!info && !visible) {
     return null;

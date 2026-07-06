@@ -17,8 +17,8 @@ interface DocumentSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
   onDocumentClick: (docId: string) => void;
-  onCreateDocument: (parentFolderId?: string) => void;
-  onCreateFolder: (parentFolderId?: string) => void;
+  onCreateDocument: (parentFolderId?: string) => Promise<{ id: string; name: string } | null>;
+  onCreateFolder: (parentFolderId?: string) => Promise<{ id: string; name: string } | null>;
   onDeleteDocument: (docId: string) => void;
   onRenameDocument: (docId: string, name: string) => void;
   onDuplicateDocument: (docId: string) => void;
@@ -106,8 +106,26 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
     setEditingItem(null);
   }, []);
 
+  // When renaming is cancelled, if the item was just created (its name
+  // matches the default), keep the default name — no change needed.
+  // User can rename later via context menu.
+
+  const handleCreateDocument = useCallback(async () => {
+    const doc = await onCreateDocument();
+    if (doc) {
+      setEditingItem({ type: "document", id: doc.id, name: doc.name });
+    }
+  }, [onCreateDocument]);
+
+  const handleCreateFolder = useCallback(async () => {
+    const folder = await onCreateFolder();
+    if (folder) {
+      setEditingItem({ type: "folder", id: folder.id, name: folder.name });
+    }
+  }, [onCreateFolder]);
+
   const handleMenuAction = useCallback(
-    (action: string) => {
+    async (action: string) => {
       if (!contextMenu) {
         return;
       }
@@ -134,12 +152,20 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
             onDuplicateDocument(id);
           }
           break;
-        case "new-file":
-          onCreateDocument(id);
+        case "new-file": {
+          const doc = await onCreateDocument(id);
+          if (doc) {
+            setEditingItem({ type: "document", id: doc.id, name: doc.name });
+          }
           break;
-        case "new-folder":
-          onCreateFolder(id);
+        }
+        case "new-folder": {
+          const folder = await onCreateFolder(id);
+          if (folder) {
+            setEditingItem({ type: "folder", id: folder.id, name: folder.name });
+          }
           break;
+        }
       }
       closeContextMenu();
     },
@@ -170,7 +196,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
               <div className="doc-sidebar__actions">
                 <button
                   className="doc-sidebar__action-btn"
-                  onClick={() => onCreateDocument()}
+                  onClick={handleCreateDocument}
                   title="New Document"
                   aria-label="New File"
                 >
@@ -185,7 +211,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
                 </button>
                 <button
                   className="doc-sidebar__action-btn"
-                  onClick={() => onCreateFolder()}
+                  onClick={handleCreateFolder}
                   title="New Folder"
                   aria-label="New Folder"
                 >

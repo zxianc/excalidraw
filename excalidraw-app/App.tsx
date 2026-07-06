@@ -1107,12 +1107,8 @@ const ExcalidrawWrapper = () => {
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen((prev: boolean) => !prev)}
           onDocumentClick={handleDocumentSwitch}
-          onCreateDocument={(parentFolderId) =>
-            createDocument(undefined, parentFolderId)
-          }
-          onCreateFolder={(parentFolderId) =>
-            createFolder("New Folder", parentFolderId)
-          }
+          onCreateDocument={(parentFolderId) => createDocument(undefined, parentFolderId).then((doc) => doc ? { id: doc.id, name: doc.name } : null)}
+          onCreateFolder={(parentFolderId) => createFolder("New Folder", parentFolderId).then((folder) => folder ? { id: folder.id, name: folder.name } : null)}
           onDeleteDocument={deleteDocument}
           onRenameDocument={handleRenameDocument}
           onDuplicateDocument={(id) => duplicateDocument(id)}

@@ -141,7 +141,9 @@ const DocumentItem: React.FC<{
     ) : (
       <span className="folder-tree__doc-name">{doc.name}</span>
     )}
-    {!isEditing && doc.dirty && <span className="folder-tree__doc-dirty" />}
+    {!isEditing && doc.isConflictCopy && !isConflictCopyExpired(doc) && (
+      <span className="folder-tree__doc-conflict" title="Conflict copy — auto-saved from device conflict" />
+    )}
   </div>
 );
 
