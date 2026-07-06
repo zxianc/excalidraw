@@ -54,11 +54,19 @@ export class DocumentManager {
   }
 
   getManifest(): Manifest {
-    // Return a shallow clone so React detects state changes immediately
+    // Return a shallow clone so React detects state changes immediately.
+    // Filter out soft-deleted documents from the exported documents map
+    // (they are already removed from folder.document arrays by deleteDocument).
+    const visibleDocs: Record<string, DocumentMeta> = {};
+    for (const [id, m] of Object.entries(this.manifest.documents)) {
+      if (!m.deleted) {
+        visibleDocs[id] = m;
+      }
+    }
     return {
       ...this.manifest,
       folders: { ...this.manifest.folders },
-      documents: { ...this.manifest.documents },
+      documents: visibleDocs,
     };
   }
   getActiveDocumentId(): string | null {
@@ -155,11 +163,17 @@ export class DocumentManager {
     if (!meta) {
       return;
     }
+    // Soft-delete: mark tombstone, remove from folder tree, delete local body.
+    // Keep manifest entry so the deletion gossips to other devices via sync.
+    meta.deleted = true;
+    meta.deletedAt = Date.now();
+    meta.dirty = false;
+    meta.updatedAt = Date.now();
+    this.manifest.documents[id] = meta;
     const folder = this.manifest.folders[meta.folderId];
     if (folder) {
       folder.documents = folder.documents.filter((dId) => dId !== id);
     }
-    delete this.manifest.documents[id];
     await this.adapter.deleteDocument(id);
     await this.persistManifest();
     if (this.activeDocId === id) {

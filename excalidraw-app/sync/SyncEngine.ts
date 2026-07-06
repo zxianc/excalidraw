@@ -320,8 +320,17 @@ export class SyncEngine {
         remoteManifest.documents,
       )) {
         console.log(
-          `[fullSync] pulling doc=${docId} name="${remoteMeta.name}" remoteVersion=${remoteMeta.remoteVersion}`,
+          `[fullSync] pulling doc=${docId} name="${remoteMeta.name}" deleted=${remoteMeta.deleted} remoteVersion=${remoteMeta.remoteVersion}`,
         );
+
+        // If remote doc is soft-deleted, delete local body and let tombstone
+        // propagate via manifest merge below.
+        if (remoteMeta.deleted) {
+          console.log(`[fullSync] doc=${docId} is tombstone, deleting local body`);
+          await this.local.deleteDocument(docId);
+          continue;
+        }
+
         const remoteData = await this.remote.loadDocument(docId);
         // Re-check dirty status in real-time — it may have changed since
         // fullSync started (user could have edited a previously-clean doc).
@@ -344,7 +353,10 @@ export class SyncEngine {
       }
 
       // Merge manifests: remote is the source of truth, but preserve
-      // local-only documents that aren't on remote yet
+      // local-only documents that aren't on remote yet.
+      // Tombstones: if remote says deleted, accept the tombstone — but if
+      // local is dirty, auto-create a conflict copy (user was editing a
+      // doc that got deleted on another device).
       const localManifest = await this.local.getManifest();
       const merged: Manifest = {
         folders: { ...remoteManifest.folders },
@@ -353,14 +365,39 @@ export class SyncEngine {
       if (localManifest) {
         for (const [id, m] of Object.entries(localManifest.documents)) {
           if (!merged.documents[id]) {
+            // Doc only exists locally — keep it
             console.log(`[fullSync] merge: adding local-only doc ${id}`);
             merged.documents[id] = m;
-          } else if (m.dirty) {
+          } else if (merged.documents[id].deleted && m.dirty) {
+            // Remote deleted but local has dirty changes → conflict copy
+            console.log(
+              `[fullSync] merge: local doc ${id} is dirty but remote deleted it — creating conflict copy`,
+            );
+            const copyId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+            const copyMeta: DocumentMeta = {
+              ...m,
+              id: copyId,
+              name: `${m.name} - Copy`,
+              dirty: false,
+              remoteVersion: null,
+              isConflictCopy: true,
+              conflictCopyCreatedAt: Date.now(),
+              deleted: false,
+            };
+            // Place copy in the same folder
+            const parentFolder = merged.folders[m.folderId] || merged.folders["root"];
+            if (parentFolder && !parentFolder.documents.includes(copyId)) {
+              parentFolder.documents.push(copyId);
+            }
+            merged.documents[copyId] = copyMeta;
+            // Keep the remote tombstone
+          } else if (m.dirty && !merged.documents[id].deleted) {
             console.log(
               `[fullSync] merge: preserving dirty doc ${id}, localRemoteVersion=${m.remoteVersion}`,
             );
             merged.documents[id] = m;
           }
+          // else: remote version wins (including tombstones for clean local docs)
         }
         for (const [id, f] of Object.entries(localManifest.folders)) {
           if (!merged.folders[id]) {

@@ -14,6 +14,10 @@ export interface DocumentMeta {
   isConflictCopy?: boolean;
   /** Timestamp when the conflict copy was created (banner + highlight fade after 24h) */
   conflictCopyCreatedAt?: number;
+  /** Soft-delete tombstone. Doc removed from folder tree but entry kept for sync gossip. */
+  deleted?: boolean;
+  /** Timestamp when the document was deleted (for potential trash/recycle bin). */
+  deletedAt?: number;
 }
 
 /** A folder in the document tree */
