@@ -457,6 +457,7 @@ const ExcalidrawWrapper = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
   const [conflictBannerInfo, setConflictBannerInfo] = useAtom(conflictBannerAtom);
+  const [isLoadingDocument, setIsLoadingDocument] = useState(false);
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
@@ -941,6 +942,7 @@ const ExcalidrawWrapper = () => {
       // This eliminates most conflicts caused by another device updating the
       // same document while we weren't looking.
       console.log(`[handleDocumentSwitch] checking if target ${docId} is stale...`);
+      setIsLoadingDocument(true);
       const pulled = await pullIfStale(docId);
       if (pulled) {
         // Remote version was newer — reload manifest so UI reflects changes
@@ -950,6 +952,7 @@ const ExcalidrawWrapper = () => {
         }
         console.log(`[handleDocumentSwitch] pulled fresh copy of ${docId} from remote`);
       }
+      setIsLoadingDocument(false);
 
       // Commit React state FIRST so the render happens before we fill the canvas.
       const mgr = getManager();
@@ -1136,6 +1139,12 @@ const ExcalidrawWrapper = () => {
         />
       )}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        {isLoadingDocument && (
+          <div className="doc-loading-overlay">
+            <div className="doc-loading-spinner" />
+            <span className="doc-loading-text">Syncing latest...</span>
+          </div>
+        )}
         <Excalidraw
           onChange={onChange}
           onExport={onExport}
