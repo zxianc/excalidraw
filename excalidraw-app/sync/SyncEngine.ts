@@ -494,11 +494,6 @@ export class SyncEngine {
         return false;
       }
 
-      if (localMeta.dirty) {
-        console.log(`[pullIfStale] doc=${targetDocId} local is dirty, skip — will handle on push`);
-        return false;
-      }
-
       console.log(
         `[pullIfStale] doc=${targetDocId} STALE local=${localMeta.remoteVersion} remote=${remoteVersion}, pulling...`,
       );
