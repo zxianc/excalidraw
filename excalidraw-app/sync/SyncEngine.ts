@@ -467,6 +467,58 @@ export class SyncEngine {
    * This is a nuclear option — all unsynced local changes will be lost.
    * Intended for manual use via dev console, not exposed in the UI.
    */
+  /**
+   * Check if remote has a newer version of targetDoc. If stale, pull the
+   * remote version into local storage and return true. Return false if
+   * local is up-to-date (or doc doesn't exist remotely).
+   * Used before opening a document — minimizes edit conflicts.
+   */
+  async pullIfStale(targetDocId: string): Promise<boolean> {
+    console.log(`[pullIfStale] checking doc=${targetDocId}`);
+    try {
+      const remoteVersion = await this.remote.getRemoteVersion(targetDocId);
+      if (!remoteVersion) {
+        console.log(`[pullIfStale] doc=${targetDocId} not on remote, skip`);
+        return false;
+      }
+
+      const localDocs = await this.local.listDocuments();
+      const localMeta = localDocs.find((d) => d.id === targetDocId);
+      if (!localMeta) {
+        console.log(`[pullIfStale] doc=${targetDocId} not local, skip`);
+        return false;
+      }
+
+      if (localMeta.remoteVersion === remoteVersion) {
+        console.log(`[pullIfStale] doc=${targetDocId} versions match, skip`);
+        return false;
+      }
+
+      if (localMeta.dirty) {
+        console.log(`[pullIfStale] doc=${targetDocId} local is dirty, skip — will handle on push`);
+        return false;
+      }
+
+      console.log(
+        `[pullIfStale] doc=${targetDocId} STALE local=${localMeta.remoteVersion} remote=${remoteVersion}, pulling...`,
+      );
+      const remoteData = await this.remote.loadDocument(targetDocId);
+      if (remoteData) {
+        await this.local.saveDocument(targetDocId, remoteData, {
+          ...localMeta,
+          dirty: false,
+          remoteVersion,
+        });
+        console.log(`[pullIfStale] doc=${targetDocId} pulled successfully`);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn(`[pullIfStale] error for ${targetDocId}:`, err);
+      return false;
+    }
+  }
+
   async forceSync(): Promise<void> {
     this.emit({ status: "syncing", documentId: "*" });
     try {

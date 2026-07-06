@@ -256,6 +256,17 @@ export function useDocumentManager() {
     [],
   );
 
+  // Check if target document is stale before opening — pull remote if newer
+  const pullIfStale = useCallback(
+    async (docId: string): Promise<boolean> => {
+      if (!syncEngineRef.current) {
+        return false;
+      }
+      return await syncEngineRef.current.pullIfStale(docId);
+    },
+    [],
+  );
+
   // Full sync all dirty docs + merge manifests
   const syncAll = useCallback(() => {
     console.log(`[useDocumentManager.syncAll] START`);
@@ -293,6 +304,7 @@ export function useDocumentManager() {
     deleteFolder,
     syncToRemote,
     syncAll,
+    pullIfStale,
     syncEngineRef,
     setManifest,
     getManager: () => manager,

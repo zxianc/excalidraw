@@ -429,6 +429,7 @@ const ExcalidrawWrapper = () => {
     syncEngineRef,
     setManifest,
     getManager,
+    pullIfStale,
   } = useDocumentManager();
   // Debounced save to IndexedDB document store
   const docSaveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -934,6 +935,20 @@ const ExcalidrawWrapper = () => {
             });
           }
         }
+      }
+
+      // Check if target document is stale before opening — pull remote if newer.
+      // This eliminates most conflicts caused by another device updating the
+      // same document while we weren't looking.
+      console.log(`[handleDocumentSwitch] checking if target ${docId} is stale...`);
+      const pulled = await pullIfStale(docId);
+      if (pulled) {
+        // Remote version was newer — reload manifest so UI reflects changes
+        if (getManager()) {
+          await getManager()!.reloadManifest();
+          setManifest(getManager()!.getManifest());
+        }
+        console.log(`[handleDocumentSwitch] pulled fresh copy of ${docId} from remote`);
       }
 
       // Commit React state FIRST so the render happens before we fill the canvas.
