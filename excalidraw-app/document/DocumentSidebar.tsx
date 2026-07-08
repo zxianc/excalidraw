@@ -9,6 +9,7 @@ import type { ConflictBannerInfo } from "./ConflictBanner";
 import "./DocumentSidebar.scss";
 
 import type { EditingItem, Manifest, SyncState } from "./types";
+import { getSidebarThemeStyle } from "./sidebarTheme";
 
 interface DocumentSidebarProps {
   manifest: Manifest;
@@ -28,6 +29,7 @@ interface DocumentSidebarProps {
   onSyncAll: () => void;
   conflictBannerInfo: ConflictBannerInfo | null;
   onDismissConflictBanner: () => void;
+  canvasBackgroundColor: string;
 }
 interface ContextMenuState {
   x: number;
@@ -54,7 +56,9 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
   onSyncAll,
   conflictBannerInfo,
   onDismissConflictBanner,
+  canvasBackgroundColor,
 }) => {
+  const sidebarThemeStyle = getSidebarThemeStyle(canvasBackgroundColor);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [editingItem, setEditingItem] = useState<EditingItem | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -188,6 +192,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
         className={clsx("doc-sidebar", {
           "doc-sidebar--closed": !isOpen,
         })}
+        style={sidebarThemeStyle}
       >
         {isOpen && (
           <>
@@ -290,6 +295,7 @@ export const DocumentSidebar: React.FC<DocumentSidebarProps> = ({
         className={clsx("doc-sidebar-toggle", {
           "doc-sidebar-toggle--open": isOpen,
         })}
+        style={sidebarThemeStyle}
         onClick={onToggle}
         title={isOpen ? "Hide Explorer" : "Show Explorer"}
       >

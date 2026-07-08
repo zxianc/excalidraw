@@ -458,6 +458,9 @@ const ExcalidrawWrapper = () => {
   const [conflictInfo, setConflictInfo] = useState<ConflictInfo | null>(null);
   const [conflictBannerInfo, setConflictBannerInfo] = useAtom(conflictBannerAtom);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
+  const [viewBackgroundColor, setViewBackgroundColor] = useState(
+    () => getDefaultAppState().viewBackgroundColor,
+  );
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
@@ -819,6 +822,10 @@ const ExcalidrawWrapper = () => {
         window.devicePixelRatio,
       );
     }
+
+    if (appState.viewBackgroundColor !== viewBackgroundColor) {
+      setViewBackgroundColor(appState.viewBackgroundColor);
+    }
   };
 
   const [latestShareableLink, setLatestShareableLink] = useState<string | null>(
@@ -965,6 +972,9 @@ const ExcalidrawWrapper = () => {
           elements: data.elements as any,
           appState: data.appState as any,
         });
+        if (data.appState?.viewBackgroundColor) {
+          setViewBackgroundColor(data.appState.viewBackgroundColor);
+        }
         if (Object.keys(data.files).length > 0) {
           excalidrawAPI.addFiles(Object.values(data.files));
         }
@@ -1136,6 +1146,7 @@ const ExcalidrawWrapper = () => {
           onSyncAll={syncAll}
           conflictBannerInfo={conflictBannerInfo}
           onDismissConflictBanner={() => setConflictBannerInfo(null)}
+          canvasBackgroundColor={viewBackgroundColor}
         />
       )}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
@@ -1197,12 +1208,12 @@ const ExcalidrawWrapper = () => {
 
             return (
               <div className="excalidraw-ui-top-right">
-                {excalidrawAPI?.getEditorInterface().formFactor ===
+                {/* {excalidrawAPI?.getEditorInterface().formFactor ===
                   "desktop" && (
                   <ExcalidrawPlusPromoBanner
                     isSignedIn={isExcalidrawPlusSignedUser}
                   />
-                )}
+                )} */}
 
                 {collabError.message && (
                   <CollabError collabError={collabError} />

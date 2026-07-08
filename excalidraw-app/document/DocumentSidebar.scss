@@ -71,12 +71,12 @@
 
   &:hover {
     opacity: 0.75;
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--sidebar-hover-bg, rgba(0, 0, 0, 0.06));
   }
 
   &:active {
     opacity: 0.9;
-    background: rgba(0, 0, 0, 0.1);
+    background: var(--sidebar-active-bg, rgba(0, 0, 0, 0.1));
   }
 
   svg {
@@ -133,7 +133,7 @@
 
   &:hover {
     opacity: 0.8;
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--sidebar-hover-bg, rgba(0, 0, 0, 0.05));
   }
 
   &:active {
